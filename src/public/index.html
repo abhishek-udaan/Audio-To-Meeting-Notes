@@ -115,6 +115,55 @@
           </div>
         </div>
       </section>
+
+      <section class="panel knowledge-panel">
+        <div class="knowledge-header">
+          <div>
+            <p class="eyebrow">Meeting memory</p>
+            <h2>Ask anything across your saved recordings.</h2>
+          </div>
+          <p id="knowledge-count" class="knowledge-count">Loading recordings...</p>
+        </div>
+
+        <form id="ask-form" class="ask-form">
+          <label class="field">
+            <span>Question</span>
+            <textarea
+              id="question-input"
+              name="question"
+              rows="3"
+              placeholder="What did we decide about the mobile upload flow?"
+              required
+            ></textarea>
+          </label>
+
+          <button id="ask-button" class="submit-button ask-button" type="submit">
+            Ask Across Recordings
+          </button>
+        </form>
+
+        <div id="ask-status" class="ask-status">
+          Ask about decisions, action items, follow-ups, owners, or anything mentioned in your processed recordings.
+        </div>
+
+        <div id="ask-result" class="result hidden">
+          <div class="result-block">
+            <h2>Answer</h2>
+            <p id="answer-text"></p>
+            <p id="answer-confidence" class="answer-confidence"></p>
+          </div>
+
+          <div class="result-block">
+            <h2>Supporting recordings</h2>
+            <ul id="supporting-recordings" class="list"></ul>
+          </div>
+
+          <div class="result-block">
+            <h2>Top matched recordings</h2>
+            <div id="matched-recordings" class="matched-recordings"></div>
+          </div>
+        </div>
+      </section>
     </main>
 
     <script type="module" src="/app.js"></script>

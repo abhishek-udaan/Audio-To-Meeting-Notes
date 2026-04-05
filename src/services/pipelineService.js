@@ -51,6 +51,11 @@ export async function processRecording({ filePath, title, source, participants, 
     transcript: transcription.text
   });
 
+  await saveNotes(recordingId, {
+    ...notesPayload,
+    notion: notionResult
+  });
+
   return {
     recordingId,
     transcriptPath,

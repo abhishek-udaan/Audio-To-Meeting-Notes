@@ -1,0 +1,97 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Meeting Notes Agent API",
+    "version": "1.0.0",
+    "description": "API for uploading meeting audio and asking questions across processed recordings."
+  },
+  "servers": [
+    {
+      "url": "https://meeting-notes-agent.onrender.com"
+    }
+  ],
+  "paths": {
+    "/api/knowledge/ask": {
+      "post": {
+        "operationId": "askAcrossRecordings",
+        "summary": "Answer a question across processed recordings",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "question": {
+                    "type": "string"
+                  }
+                },
+                "required": ["question"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Question answered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "answer": { "type": "string" },
+                    "confidence": { "type": "string" },
+                    "supportingRecordings": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "recordingId": { "type": "string" },
+                          "title": { "type": "string" },
+                          "reason": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/knowledge/recordings": {
+      "get": {
+        "operationId": "listRecordings",
+        "summary": "List indexed recordings",
+        "responses": {
+          "200": {
+            "description": "Indexed recordings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "ok": { "type": "boolean" },
+                    "records": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "recordingId": { "type": "string" },
+                          "title": { "type": "string" },
+                          "summary": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

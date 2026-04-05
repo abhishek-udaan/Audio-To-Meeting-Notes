@@ -229,6 +229,17 @@ body::before {
   background: rgba(255, 255, 255, 0.78);
 }
 
+.field textarea {
+  width: 100%;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 15px 16px;
+  font: inherit;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.78);
+  resize: vertical;
+}
+
 .submit-button {
   border: 0;
   border-radius: 999px;
@@ -253,6 +264,87 @@ body::before {
 .status-panel {
   margin-top: 18px;
   padding: 18px;
+}
+
+.knowledge-panel {
+  margin-top: 18px;
+  padding: 18px;
+}
+
+.knowledge-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.knowledge-header h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.knowledge-count {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.ask-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.ask-button {
+  width: 100%;
+}
+
+.ask-status {
+  margin-top: 12px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.answer-confidence {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
+.matched-recordings {
+  display: grid;
+  gap: 12px;
+}
+
+.match-card {
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(52, 40, 24, 0.08);
+}
+
+.match-card h3 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.match-card p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.match-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.match-links a {
+  color: var(--accent-dark);
+  text-decoration: none;
+  font-size: 0.92rem;
 }
 
 .status-header {

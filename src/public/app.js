@@ -16,6 +16,16 @@ const notionLink = document.getElementById("notion-link");
 const summaryText = document.getElementById("summary-text");
 const actionItems = document.getElementById("action-items");
 const decisions = document.getElementById("decisions");
+const askForm = document.getElementById("ask-form");
+const questionInput = document.getElementById("question-input");
+const askButton = document.getElementById("ask-button");
+const askStatus = document.getElementById("ask-status");
+const askResult = document.getElementById("ask-result");
+const answerText = document.getElementById("answer-text");
+const answerConfidence = document.getElementById("answer-confidence");
+const supportingRecordings = document.getElementById("supporting-recordings");
+const matchedRecordings = document.getElementById("matched-recordings");
+const knowledgeCount = document.getElementById("knowledge-count");
 
 let mediaRecorder = null;
 let mediaStream = null;
@@ -137,6 +147,73 @@ function renderList(element, items, formatter = (item) => item) {
     li.textContent = formatter(item);
     element.appendChild(li);
   });
+}
+
+function setAskStatus(message) {
+  askStatus.textContent = message;
+}
+
+function renderMatchedRecordings(matches = []) {
+  matchedRecordings.innerHTML = "";
+
+  matches.forEach((match) => {
+    const card = document.createElement("article");
+    card.className = "match-card";
+
+    const title = document.createElement("h3");
+    title.textContent = match.title;
+
+    const summary = document.createElement("p");
+    summary.textContent = match.summary || "No summary saved for this recording.";
+
+    const links = document.createElement("div");
+    links.className = "match-links";
+
+    const transcriptAnchor = document.createElement("a");
+    transcriptAnchor.href = match.transcriptUrl || "#";
+    transcriptAnchor.target = "_blank";
+    transcriptAnchor.rel = "noreferrer";
+    transcriptAnchor.textContent = "Transcript";
+
+    const notesAnchor = document.createElement("a");
+    notesAnchor.href = match.notesUrl || "#";
+    notesAnchor.target = "_blank";
+    notesAnchor.rel = "noreferrer";
+    notesAnchor.textContent = "Notes";
+
+    links.appendChild(transcriptAnchor);
+    links.appendChild(notesAnchor);
+
+    if (match.notionUrl) {
+      const notionAnchor = document.createElement("a");
+      notionAnchor.href = match.notionUrl;
+      notionAnchor.target = "_blank";
+      notionAnchor.rel = "noreferrer";
+      notionAnchor.textContent = "Notion";
+      links.appendChild(notionAnchor);
+    }
+
+    card.appendChild(title);
+    card.appendChild(summary);
+    card.appendChild(links);
+    matchedRecordings.appendChild(card);
+  });
+}
+
+async function loadKnowledgeOverview() {
+  try {
+    const response = await fetch("/api/knowledge/recordings");
+    const payload = await response.json();
+
+    if (!response.ok) {
+      throw new Error(payload.error || "Could not load recordings.");
+    }
+
+    const count = payload.records?.length || 0;
+    knowledgeCount.textContent = `${count} recording${count === 1 ? "" : "s"} indexed`;
+  } catch (error) {
+    knowledgeCount.textContent = "Could not load recording count";
+  }
 }
 
 async function submitAudio(file) {
@@ -284,3 +361,49 @@ form.addEventListener("submit", async (event) => {
 });
 
 setRecorderAvailability();
+loadKnowledgeOverview();
+
+askForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+
+  const question = questionInput.value.trim();
+  if (!question) {
+    setAskStatus("Enter a question before searching your recordings.");
+    return;
+  }
+
+  askButton.disabled = true;
+  askResult.classList.add("hidden");
+  setAskStatus("Searching your saved recordings and drafting an answer.");
+
+  try {
+    const response = await fetch("/api/knowledge/ask", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ question })
+    });
+
+    const payload = await response.json();
+    if (!response.ok) {
+      throw new Error(payload.error || "Question answering failed.");
+    }
+
+    answerText.textContent = payload.answer || "No answer returned.";
+    answerConfidence.textContent = `Confidence: ${payload.confidence || "unknown"}`;
+    renderList(
+      supportingRecordings,
+      payload.supportingRecordings,
+      (item) => `${item.title || item.recordingId} • ${item.reason || "Referenced in the answer"}`
+    );
+    renderMatchedRecordings(payload.matches || []);
+
+    askResult.classList.remove("hidden");
+    setAskStatus("Answer ready.");
+  } catch (error) {
+    setAskStatus(error.message);
+  } finally {
+    askButton.disabled = false;
+  }
+});

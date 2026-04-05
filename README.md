@@ -153,6 +153,8 @@ Example direct trigger payload:
 - `POST /api/uploads/audio`
 - `GET /api/webhooks/whatsapp`
 - `POST /api/webhooks/whatsapp`
+- `GET /api/knowledge/recordings`
+- `POST /api/knowledge/ask`
 
 ## Web UI
 
@@ -168,6 +170,25 @@ Fallback:
 - upload an existing audio file from the same page
 
 Saved transcript and note JSON files are also exposed under `/files/...`.
+
+The same UI also supports asking questions across all processed recordings. It searches saved note/transcript JSON, sends the top matching records to OpenAI, and returns an answer with supporting recordings.
+
+Example questions:
+
+- `What did we decide about the mobile upload flow?`
+- `What action items were assigned to Priya?`
+- `Which meetings mentioned budget updates?`
+
+## Custom GPT Action
+
+An OpenAPI schema for the searchable meeting-memory endpoints is available at:
+
+- `/openapi.json`
+
+That can be used later in a Custom GPT Action so ChatGPT can call:
+
+- `GET /api/knowledge/recordings`
+- `POST /api/knowledge/ask`
 
 ## Deploy Publicly
 

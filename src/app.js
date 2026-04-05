@@ -2,6 +2,7 @@ import express from "express";
 import path from "node:path";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
+import knowledgeRoutes from "./routes/knowledgeRoutes.js";
 import { storageRoot } from "./config/paths.js";
 
 export function createApp() {
@@ -22,6 +23,7 @@ export function createApp() {
 
   app.use("/api/uploads", uploadRoutes);
   app.use("/api/webhooks", webhookRoutes);
+  app.use("/api/knowledge", knowledgeRoutes);
 
   app.get("/", (req, res) => {
     res.sendFile(path.join(publicDir, "index.html"));
