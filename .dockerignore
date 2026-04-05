@@ -1,0 +1,12 @@
+node_modules
+npm-debug.log
+.env
+.DS_Store
+storage/uploads/*
+storage/raw/*
+storage/transcripts/*
+storage/notes/*
+!storage/uploads/.gitkeep
+!storage/raw/.gitkeep
+!storage/transcripts/.gitkeep
+!storage/notes/.gitkeep

@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Meeting Notes Agent</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Instrument+Serif:ital@0;1&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Phone-first meeting capture</p>
+        <h1>Turn a voice note into clean meeting notes and a Notion page.</h1>
+        <p class="intro">
+          Upload audio from your phone, add a little context, and let the backend handle
+          transcription, structured notes, and Notion delivery.
+        </p>
+      </section>
+
+      <section class="panel upload-panel">
+        <form id="upload-form" class="upload-form">
+          <div class="recorder-card">
+            <div class="recorder-copy">
+              <p class="eyebrow">Live capture</p>
+              <h2>Record from your phone and process automatically.</h2>
+              <p>
+                Tap start, record your meeting or voice note, then tap stop. The app will upload
+                and process the recording right away.
+              </p>
+            </div>
+
+            <div class="recorder-controls">
+              <button id="record-button" class="record-button" type="button">Start Recording</button>
+              <p id="recording-state" class="recording-state">Microphone idle</p>
+              <p id="recording-timer" class="recording-timer">00:00</p>
+            </div>
+
+            <audio id="recording-preview" class="recording-preview hidden" controls></audio>
+          </div>
+
+          <div class="divider">
+            <span>or upload an existing file</span>
+          </div>
+
+          <label class="dropzone" for="audio">
+            <input id="audio" name="audio" type="file" accept="audio/*,.m4a,.mp3,.wav,.ogg,.mp4" required />
+            <span class="dropzone-copy">
+              <strong>Choose an audio file</strong>
+              <span id="file-label">M4A, MP3, WAV, OGG, MP4</span>
+            </span>
+          </label>
+
+          <label class="field">
+            <span>Meeting title</span>
+            <input name="title" type="text" placeholder="Weekly staff sync" />
+          </label>
+
+          <label class="field">
+            <span>Participants</span>
+            <input name="participants" type="text" placeholder="Alex, Priya, Sam" />
+          </label>
+
+          <label class="field">
+            <span>Source</span>
+            <input name="source" type="text" value="web-ui" />
+          </label>
+
+          <button id="submit-button" class="submit-button" type="submit">
+            Generate Notes
+          </button>
+        </form>
+      </section>
+
+      <section class="panel status-panel">
+        <div class="status-header">
+          <p class="eyebrow">Processing status</p>
+          <p id="status-badge" class="status-badge idle">Idle</p>
+        </div>
+
+        <div id="status-copy" class="status-copy">
+          Pick a recording and submit it to see transcript, notes, and Notion links here.
+        </div>
+
+        <div id="result" class="result hidden">
+          <div class="result-block">
+            <h2>Saved outputs</h2>
+            <a id="transcript-link" href="#" target="_blank" rel="noreferrer">Transcript file</a>
+            <a id="notes-link" href="#" target="_blank" rel="noreferrer">Notes file</a>
+            <a id="notion-link" href="#" target="_blank" rel="noreferrer">Open Notion page</a>
+          </div>
+
+          <div class="result-block">
+            <h2>Summary</h2>
+            <p id="summary-text"></p>
+          </div>
+
+          <div class="result-block">
+            <h2>Action items</h2>
+            <ul id="action-items" class="list"></ul>
+          </div>
+
+          <div class="result-block">
+            <h2>Decisions</h2>
+            <ul id="decisions" class="list"></ul>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+  </html>

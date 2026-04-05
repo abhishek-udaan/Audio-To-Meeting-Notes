@@ -1,0 +1,65 @@
+services:
+  - type: web
+    name: meeting-notes-agent
+    runtime: docker
+    plan: starter
+    healthCheckPath: /health
+    disk:
+      name: meeting-notes-storage
+      mountPath: /data
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3000
+      - key: APP_BASE_URL
+        sync: false
+      - key: STORAGE_DIR
+        value: /data
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: OPENAI_TRANSCRIPTION_MODEL
+        value: gpt-4o-transcribe
+      - key: OPENAI_NOTES_MODEL
+        value: gpt-5
+      - key: OPENAI_REASONING_EFFORT
+        value: low
+      - key: OPENAI_TRANSCRIPTION_PROMPT
+        value: "Transcribe this meeting recording accurately. Preserve speaker changes, decisions, deadlines, and named entities when audible."
+      - key: NOTION_API_TOKEN
+        sync: false
+      - key: NOTION_VERSION
+        value: 2025-09-03
+      - key: NOTION_DATA_SOURCE_ID
+        sync: false
+      - key: NOTION_DATABASE_ID
+        value: ""
+      - key: NOTION_TITLE_PROPERTY
+        value: Name
+      - key: NOTION_SOURCE_PROPERTY
+        value: Source
+      - key: NOTION_SOURCE_PROPERTY_TYPE
+        value: rich_text
+      - key: NOTION_STATUS_PROPERTY
+        value: Status
+      - key: NOTION_STATUS_PROPERTY_TYPE
+        value: rich_text
+      - key: NOTION_PROCESSED_PROPERTY
+        value: Processed
+      - key: NOTION_PROCESSED_PROPERTY_TYPE
+        value: rich_text
+      - key: NOTION_DATE_PROPERTY
+        value: Created Date Time
+      - key: NOTION_DATE_PROPERTY_TYPE
+        value: rich_text
+      - key: NOTION_PAGE_ICON
+        value: "📝"
+      - key: WHATSAPP_VERIFY_TOKEN
+        value: ""
+      - key: WHATSAPP_ACCESS_TOKEN
+        value: ""
+      - key: WHATSAPP_GRAPH_VERSION
+        value: v22.0
+      - key: MAX_UPLOAD_MB
+        value: 50
