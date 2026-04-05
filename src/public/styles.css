@@ -154,6 +154,13 @@ body::before {
   margin-top: 14px;
 }
 
+.recorder-help {
+  margin: 12px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+
 .hidden {
   display: none;
 }
@@ -234,6 +241,11 @@ body::before {
 }
 
 .submit-button:disabled {
+  opacity: 0.6;
+  box-shadow: none;
+}
+
+.record-button:disabled {
   opacity: 0.6;
   box-shadow: none;
 }

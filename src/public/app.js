@@ -6,6 +6,7 @@ const recordButton = document.getElementById("record-button");
 const recordingState = document.getElementById("recording-state");
 const recordingTimer = document.getElementById("recording-timer");
 const recordingPreview = document.getElementById("recording-preview");
+const recorderHelp = document.getElementById("recorder-help");
 const statusBadge = document.getElementById("status-badge");
 const statusCopy = document.getElementById("status-copy");
 const result = document.getElementById("result");
@@ -22,6 +23,26 @@ let recordingChunks = [];
 let recordingStartedAt = null;
 let timerInterval = null;
 let recordedBlob = null;
+
+function supportsRecording() {
+  return Boolean(window.isSecureContext && navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
+}
+
+function getPreferredMimeType() {
+  const candidates = [
+    "audio/mp4",
+    "audio/webm;codecs=opus",
+    "audio/webm",
+    "audio/ogg;codecs=opus",
+    "audio/ogg"
+  ];
+
+  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "";
+  }
+
+  return candidates.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || "";
+}
 
 function toBrowserFileUrl(filePath) {
   if (!filePath) return "#";
@@ -55,6 +76,25 @@ function setRecordingUi({ isRecording, stateText }) {
   recordButton.classList.toggle("recording", isRecording);
   recordButton.textContent = isRecording ? "Stop Recording" : "Start Recording";
   recordingState.textContent = stateText;
+}
+
+function setRecorderAvailability() {
+  if (supportsRecording()) {
+    recorderHelp.textContent = "Tap start to grant microphone access, then stop to upload automatically.";
+    recordButton.disabled = false;
+    return;
+  }
+
+  if (!window.isSecureContext) {
+    recorderHelp.textContent = "Recording needs a secure HTTPS page. Use the deployed app URL, not an insecure local address.";
+  } else if (!navigator.mediaDevices?.getUserMedia) {
+    recorderHelp.textContent = "This browser cannot access the microphone. Use Safari on iPhone or Chrome on Android.";
+  } else {
+    recorderHelp.textContent = "This browser does not support in-browser recording. You can still upload a file below.";
+  }
+
+  recordButton.disabled = true;
+  setRecordingUi({ isRecording: false, stateText: "Recording unavailable" });
 }
 
 function stopTimer() {
@@ -150,8 +190,8 @@ async function stopRecordingAndUpload() {
 }
 
 async function startRecording() {
-  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
-    setStatus("error", "This browser does not support in-browser audio recording.");
+  if (!supportsRecording()) {
+    setStatus("error", "This browser cannot record audio here. Try the HTTPS deployed app or use file upload.");
     return;
   }
 
@@ -162,7 +202,8 @@ async function startRecording() {
     recordingPreview.classList.add("hidden");
     recordingPreview.removeAttribute("src");
 
-    mediaRecorder = new MediaRecorder(mediaStream);
+    const mimeType = getPreferredMimeType();
+    mediaRecorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream);
 
     mediaRecorder.addEventListener("dataavailable", (event) => {
       if (event.data.size > 0) {
@@ -170,11 +211,24 @@ async function startRecording() {
       }
     });
 
+    mediaRecorder.addEventListener("error", () => {
+      stopTimer();
+      setStatus("error", "Recording failed in the browser. Try file upload if this keeps happening.");
+      setRecordingUi({ isRecording: false, stateText: "Recording failed" });
+    });
+
     mediaRecorder.addEventListener("stop", async () => {
       stopTimer();
 
       const mimeType = mediaRecorder.mimeType || "audio/webm";
       recordedBlob = new Blob(recordingChunks, { type: mimeType });
+
+      if (!recordedBlob.size) {
+        setStatus("error", "No audio was captured. Please try again or use file upload.");
+        setRecordingUi({ isRecording: false, stateText: "No recording captured" });
+        return;
+      }
+
       const previewUrl = URL.createObjectURL(recordedBlob);
 
       recordingPreview.src = previewUrl;
@@ -194,7 +248,12 @@ async function startRecording() {
     setRecordingUi({ isRecording: true, stateText: "Recording in progress..." });
     startTimer();
   } catch (error) {
-    setStatus("error", "Microphone access was denied or unavailable.");
+    const message =
+      error?.name === "NotAllowedError"
+        ? "Microphone permission was denied. Allow microphone access and try again."
+        : "Microphone access was unavailable. You can still upload a file below.";
+
+    setStatus("error", message);
     setRecordingUi({ isRecording: false, stateText: "Microphone idle" });
   }
 }
@@ -223,3 +282,5 @@ form.addEventListener("submit", async (event) => {
 
   await submitAudio(audioInput.files[0]);
 });
+
+setRecorderAvailability();
