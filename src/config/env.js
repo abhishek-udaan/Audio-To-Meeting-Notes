@@ -54,7 +54,7 @@ export const env = {
   whatsappVerifyToken: optional("WHATSAPP_VERIFY_TOKEN"),
   whatsappAccessToken: optional("WHATSAPP_ACCESS_TOKEN"),
   whatsappGraphVersion: optional("WHATSAPP_GRAPH_VERSION", "v22.0"),
-  maxUploadMb: number("MAX_UPLOAD_MB", 50)
+  maxUploadMb: number("MAX_UPLOAD_MB", 150)
 };
 
 if (!env.notionDataSourceId && !env.notionDatabaseId) {

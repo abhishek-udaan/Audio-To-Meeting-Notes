@@ -31,6 +31,13 @@ export function createApp() {
 
   app.use((error, req, res, next) => {
     console.error(error);
+
+    if (error?.code === "LIMIT_FILE_SIZE") {
+      return res.status(413).json({
+        error: "File is too large. Maximum upload size is 150 MB."
+      });
+    }
+
     res.status(error.status || 500).json({
       error: error.message || "Internal server error",
       details: error.payload || error.outputText || undefined

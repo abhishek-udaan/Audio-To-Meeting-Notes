@@ -62,4 +62,4 @@ services:
       - key: WHATSAPP_GRAPH_VERSION
         value: v22.0
       - key: MAX_UPLOAD_MB
-        value: 50
+        value: 150

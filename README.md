@@ -254,3 +254,4 @@ For Notion, the implementation prefers `data_source_id` under the newer API mode
 - `npm install` and runtime verification were not performed automatically if Node/npm are unavailable on the host machine.
 - For very large files, you may want to replace local disk storage with object storage.
 - For production WhatsApp setups, validate signatures and deploy behind HTTPS.
+- Default upload size is configured for files up to 150 MB through `MAX_UPLOAD_MB`.
