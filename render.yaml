@@ -18,7 +18,7 @@ services:
       - key: STORAGE_DIR
         value: /data
       - key: GOOGLE_CLIENT_ID
-        sync: false
+        value: 67960367928-sm2ptj78vidt4r3mqiqd29uoth4r2ue8.apps.googleusercontent.com
       - key: SESSION_COOKIE_NAME
         value: meeting_notes_session
       - key: OPENAI_API_KEY
