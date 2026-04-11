@@ -31,6 +31,7 @@ export const env = {
   storageDir: optional("STORAGE_DIR", "storage"),
   openAiApiKey: required("OPENAI_API_KEY"),
   openAiTranscriptionModel: optional("OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-transcribe"),
+  transcriptionChunkSeconds: number("TRANSCRIPTION_CHUNK_SECONDS", 1200),
   openAiNotesModel: optional("OPENAI_NOTES_MODEL", "gpt-5"),
   openAiReasoningEffort: optional("OPENAI_REASONING_EFFORT", "low"),
   openAiTranscriptionPrompt: optional(

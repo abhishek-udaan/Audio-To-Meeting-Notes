@@ -21,6 +21,8 @@ services:
         sync: false
       - key: OPENAI_TRANSCRIPTION_MODEL
         value: gpt-4o-transcribe
+      - key: TRANSCRIPTION_CHUNK_SECONDS
+        value: 1200
       - key: OPENAI_NOTES_MODEL
         value: gpt-5
       - key: OPENAI_REASONING_EFFORT

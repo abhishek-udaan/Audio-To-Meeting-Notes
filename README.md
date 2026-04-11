@@ -246,6 +246,7 @@ This project uses current official OpenAI patterns by:
 - using the `openai` Node SDK
 - using the `audio.transcriptions.create(...)` API for speech-to-text
 - using the `responses.create(...)` API for note generation
+- automatically splitting long recordings into smaller transcription chunks before sending them to OpenAI
 
 For Notion, the implementation prefers `data_source_id` under the newer API model and can fall back to `database_id` if needed. Text-like fields can be configured as `rich_text`, `select`, or `status`, and the date/timestamp field can be configured as either `date` or `rich_text`.
 
@@ -255,3 +256,4 @@ For Notion, the implementation prefers `data_source_id` under the newer API mode
 - For very large files, you may want to replace local disk storage with object storage.
 - For production WhatsApp setups, validate signatures and deploy behind HTTPS.
 - Default upload size is configured for files up to 150 MB through `MAX_UPLOAD_MB`.
+- Long recordings are chunked automatically before transcription. The default chunk size is `1200` seconds and can be changed with `TRANSCRIPTION_CHUNK_SECONDS`.
