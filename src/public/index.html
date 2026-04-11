@@ -14,155 +14,191 @@
   </head>
   <body>
     <main class="shell">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Private meeting workspace</p>
+          <h1>Audio to Meeting Notes</h1>
+        </div>
+
+        <div id="user-chip" class="user-chip hidden">
+          <img id="user-avatar" class="user-avatar" alt="" />
+          <div>
+            <p id="user-name" class="user-name"></p>
+            <p id="user-email" class="user-email"></p>
+          </div>
+          <button id="logout-button" class="ghost-button" type="button">Log out</button>
+        </div>
+      </header>
+
       <section class="hero">
-        <p class="eyebrow">Phone-first meeting capture</p>
-        <h1>Turn a voice note into clean meeting notes and a Notion page.</h1>
+        <p class="eyebrow">Multi-user AI meeting notes</p>
+        <h2>Record, organize, and ask questions across your own meetings.</h2>
         <p class="intro">
-          Upload audio from your phone, add a little context, and let the backend handle
-          transcription, structured notes, and Notion delivery.
+          Sign in with Google to keep recordings separated by user, browse every generated note in
+          one place, and chat with your meeting memory.
         </p>
       </section>
 
-      <section class="panel upload-panel">
-        <form id="upload-form" class="upload-form">
-          <div class="recorder-card">
-            <div class="recorder-copy">
-              <p class="eyebrow">Live capture</p>
-              <h2>Record from your phone and process automatically.</h2>
-              <p>
-                Tap start, record your meeting or voice note, then tap stop. The app will upload
-                and process the recording right away.
-              </p>
-            </div>
+      <section id="auth-panel" class="panel auth-panel">
+        <div class="auth-copy">
+          <p class="eyebrow">Secure sign-in</p>
+          <h3>Continue with Google</h3>
+          <p id="auth-copy">
+            Sign in to unlock your private meeting library, uploads, and chat assistant.
+          </p>
+        </div>
 
-            <div class="recorder-controls">
-              <button id="record-button" class="record-button" type="button">Start Recording</button>
-              <p id="recording-state" class="recording-state">Microphone idle</p>
-              <p id="recording-timer" class="recording-timer">00:00</p>
-            </div>
-
-            <p id="recorder-help" class="recorder-help">
-              Best on HTTPS in Safari on iPhone or Chrome on Android.
-            </p>
-
-            <audio id="recording-preview" class="recording-preview hidden" controls></audio>
-          </div>
-
-          <div class="divider">
-            <span>or upload an existing file</span>
-          </div>
-
-          <label class="dropzone" for="audio">
-            <input id="audio" name="audio" type="file" accept="audio/*,.m4a,.mp3,.wav,.ogg,.mp4" />
-            <span class="dropzone-copy">
-              <strong>Choose an audio file</strong>
-              <span id="file-label">M4A, MP3, WAV, OGG, MP4</span>
-            </span>
-          </label>
-
-          <label class="field">
-            <span>Meeting title</span>
-            <input name="title" type="text" placeholder="Weekly staff sync" />
-          </label>
-
-          <label class="field">
-            <span>Participants</span>
-            <input name="participants" type="text" placeholder="Alex, Priya, Sam" />
-          </label>
-
-          <label class="field">
-            <span>Source</span>
-            <input name="source" type="text" value="web-ui" />
-          </label>
-
-          <button id="submit-button" class="submit-button" type="submit">
-            Generate Notes
-          </button>
-        </form>
+        <div id="google-signin" class="google-signin"></div>
+        <p id="auth-status" class="auth-status">Checking login configuration...</p>
       </section>
 
-      <section class="panel status-panel">
-        <div class="status-header">
-          <p class="eyebrow">Processing status</p>
-          <p id="status-badge" class="status-badge idle">Idle</p>
+      <section id="workspace" class="workspace hidden">
+        <div class="workspace-grid">
+          <section class="panel upload-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Capture</p>
+                <h3>Record or upload a meeting</h3>
+              </div>
+            </div>
+
+            <form id="upload-form" class="upload-form">
+              <div class="recorder-card">
+                <div class="recorder-copy">
+                  <h4>Record from your phone and process automatically.</h4>
+                  <p>
+                    Tap start, speak, then stop. The app uploads the recording and generates notes
+                    for your account automatically.
+                  </p>
+                </div>
+
+                <div class="recorder-controls">
+                  <button id="record-button" class="record-button" type="button">Start Recording</button>
+                  <p id="recording-state" class="recording-state">Microphone idle</p>
+                  <p id="recording-timer" class="recording-timer">00:00</p>
+                </div>
+
+                <p id="recorder-help" class="recorder-help">
+                  Best on HTTPS in Safari on iPhone or Chrome on Android.
+                </p>
+
+                <audio id="recording-preview" class="recording-preview hidden" controls></audio>
+              </div>
+
+              <div class="divider">
+                <span>or upload an existing file</span>
+              </div>
+
+              <label class="field">
+                <span>Audio file</span>
+                <input id="audio" name="audio" type="file" accept="audio/*,.m4a,.mp3,.wav,.ogg,.mp4" />
+                <small id="file-label">M4A, MP3, WAV, OGG, MP4 up to 150 MB</small>
+              </label>
+
+              <label class="field">
+                <span>Meeting title</span>
+                <input name="title" type="text" placeholder="Weekly staff sync" />
+              </label>
+
+              <label class="field">
+                <span>Participants</span>
+                <input name="participants" type="text" placeholder="Alex, Priya, Sam" />
+              </label>
+
+              <label class="field">
+                <span>Source</span>
+                <input name="source" type="text" value="web-ui" />
+              </label>
+
+              <button id="submit-button" class="submit-button" type="submit">
+                Generate Notes
+              </button>
+            </form>
+          </section>
+
+          <section class="panel status-panel">
+            <div class="panel-heading">
+              <div>
+                <p class="eyebrow">Latest run</p>
+                <h3>Processing status</h3>
+              </div>
+              <p id="status-badge" class="status-badge idle">Idle</p>
+            </div>
+
+            <div id="status-copy" class="status-copy">
+              Record or upload a meeting to generate transcript, notes, and a Notion page.
+            </div>
+
+            <div id="result" class="result hidden">
+              <div class="result-block">
+                <h4>Saved outputs</h4>
+                <a id="transcript-link" href="#" target="_blank" rel="noreferrer">Transcript file</a>
+                <a id="notes-link" href="#" target="_blank" rel="noreferrer">Notes file</a>
+                <a id="notion-link" href="#" target="_blank" rel="noreferrer">Open Notion page</a>
+              </div>
+
+              <div class="result-block">
+                <h4>Summary</h4>
+                <p id="summary-text"></p>
+              </div>
+
+              <div class="result-block">
+                <h4>Action items</h4>
+                <ul id="action-items" class="list"></ul>
+              </div>
+
+              <div class="result-block">
+                <h4>Decisions</h4>
+                <ul id="decisions" class="list"></ul>
+              </div>
+            </div>
+          </section>
         </div>
 
-        <div id="status-copy" class="status-copy">
-          Pick a recording and submit it to see transcript, notes, and Notion links here.
-        </div>
-
-        <div id="result" class="result hidden">
-          <div class="result-block">
-            <h2>Saved outputs</h2>
-            <a id="transcript-link" href="#" target="_blank" rel="noreferrer">Transcript file</a>
-            <a id="notes-link" href="#" target="_blank" rel="noreferrer">Notes file</a>
-            <a id="notion-link" href="#" target="_blank" rel="noreferrer">Open Notion page</a>
+        <section class="panel library-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Your notes</p>
+              <h3>Every generated note, organized per user</h3>
+            </div>
+            <p id="notes-count" class="meta-count">Loading...</p>
           </div>
 
-          <div class="result-block">
-            <h2>Summary</h2>
-            <p id="summary-text"></p>
+          <div id="notes-empty" class="empty-state hidden">
+            No notes yet. Record or upload your first meeting to build your private library.
           </div>
 
-          <div class="result-block">
-            <h2>Action items</h2>
-            <ul id="action-items" class="list"></ul>
+          <div id="notes-grid" class="notes-grid"></div>
+        </section>
+
+        <section class="panel chat-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="eyebrow">Meeting assistant</p>
+              <h3>Chat with your recordings</h3>
+            </div>
+            <p id="knowledge-count" class="meta-count">Loading...</p>
           </div>
 
-          <div class="result-block">
-            <h2>Decisions</h2>
-            <ul id="decisions" class="list"></ul>
+          <div id="chat-thread" class="chat-thread">
+            <div class="chat-message assistant">
+              <div class="chat-bubble">
+                Ask about decisions, action items, owners, or follow-ups across your meetings.
+              </div>
+            </div>
           </div>
-        </div>
-      </section>
 
-      <section class="panel knowledge-panel">
-        <div class="knowledge-header">
-          <div>
-            <p class="eyebrow">Meeting memory</p>
-            <h2>Ask anything across your saved recordings.</h2>
-          </div>
-          <p id="knowledge-count" class="knowledge-count">Loading recordings...</p>
-        </div>
-
-        <form id="ask-form" class="ask-form">
-          <label class="field">
-            <span>Question</span>
+          <form id="ask-form" class="chat-form">
             <textarea
               id="question-input"
               name="question"
-              rows="3"
+              rows="2"
               placeholder="What did we decide about the mobile upload flow?"
               required
             ></textarea>
-          </label>
-
-          <button id="ask-button" class="submit-button ask-button" type="submit">
-            Ask Across Recordings
-          </button>
-        </form>
-
-        <div id="ask-status" class="ask-status">
-          Ask about decisions, action items, follow-ups, owners, or anything mentioned in your processed recordings.
-        </div>
-
-        <div id="ask-result" class="result hidden">
-          <div class="result-block">
-            <h2>Answer</h2>
-            <p id="answer-text"></p>
-            <p id="answer-confidence" class="answer-confidence"></p>
-          </div>
-
-          <div class="result-block">
-            <h2>Supporting recordings</h2>
-            <ul id="supporting-recordings" class="list"></ul>
-          </div>
-
-          <div class="result-block">
-            <h2>Top matched recordings</h2>
-            <div id="matched-recordings" class="matched-recordings"></div>
-          </div>
-        </div>
+            <button id="ask-button" class="submit-button ask-button" type="submit">Send</button>
+          </form>
+        </section>
       </section>
     </main>
 

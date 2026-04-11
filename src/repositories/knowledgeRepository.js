@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { notesDir, transcriptsDir } from "../config/paths.js";
+import { getUserNotesDir, getUserTranscriptsDir, notesDir, transcriptsDir } from "../config/paths.js";
 
 async function readJsonIfExists(filePath) {
   try {
@@ -40,15 +40,28 @@ function buildSearchableText(record) {
   return fields.filter(Boolean).join(" ").toLowerCase();
 }
 
-export async function loadKnowledgeRecords() {
-  const noteFiles = await fs.readdir(notesDir);
+export async function loadKnowledgeRecords(userId = "") {
+  const currentNotesDir = userId ? getUserNotesDir(userId) : notesDir;
+  const currentTranscriptsDir = userId ? getUserTranscriptsDir(userId) : transcriptsDir;
+
+  let noteFiles = [];
+  try {
+    noteFiles = await fs.readdir(currentNotesDir);
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return [];
+    }
+
+    throw error;
+  }
+
   const jsonFiles = noteFiles.filter((filename) => filename.endsWith(".json"));
 
   const records = await Promise.all(
     jsonFiles.map(async (filename) => {
       const recordingId = path.basename(filename, ".json");
-      const notePath = path.join(notesDir, filename);
-      const transcriptPath = path.join(transcriptsDir, filename);
+      const notePath = path.join(currentNotesDir, filename);
+      const transcriptPath = path.join(currentTranscriptsDir, filename);
       const notePayload = await readJsonIfExists(notePath);
       const transcriptPayload = await readJsonIfExists(transcriptPath);
 

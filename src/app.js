@@ -1,9 +1,11 @@
 import express from "express";
 import path from "node:path";
+import authRoutes from "./routes/authRoutes.js";
+import noteRoutes from "./routes/noteRoutes.js";
 import uploadRoutes from "./routes/uploadRoutes.js";
 import webhookRoutes from "./routes/webhookRoutes.js";
 import knowledgeRoutes from "./routes/knowledgeRoutes.js";
-import { storageRoot } from "./config/paths.js";
+import { attachUser } from "./middleware/authMiddleware.js";
 
 export function createApp() {
   const app = express();
@@ -11,8 +13,8 @@ export function createApp() {
 
   app.use(express.json({ limit: "10mb" }));
   app.use(express.urlencoded({ extended: true }));
+  app.use(attachUser);
   app.use(express.static(publicDir));
-  app.use("/files", express.static(storageRoot));
 
   app.get("/health", (req, res) => {
     res.json({
@@ -21,6 +23,8 @@ export function createApp() {
     });
   });
 
+  app.use("/api/auth", authRoutes);
+  app.use("/api/notes", noteRoutes);
   app.use("/api/uploads", uploadRoutes);
   app.use("/api/webhooks", webhookRoutes);
   app.use("/api/knowledge", knowledgeRoutes);

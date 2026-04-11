@@ -1,9 +1,11 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { transcriptsDir } from "../config/paths.js";
+import { getUserTranscriptsDir, transcriptsDir } from "../config/paths.js";
 
-export async function saveTranscript(recordingId, payload) {
-  const filePath = path.join(transcriptsDir, `${recordingId}.json`);
+export async function saveTranscript(userId, recordingId, payload) {
+  const targetDir = userId ? getUserTranscriptsDir(userId) : transcriptsDir;
+  await fs.mkdir(targetDir, { recursive: true });
+  const filePath = path.join(targetDir, `${recordingId}.json`);
   await fs.writeFile(filePath, JSON.stringify(payload, null, 2), "utf8");
   return filePath;
 }

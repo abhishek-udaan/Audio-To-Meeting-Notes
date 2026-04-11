@@ -29,6 +29,8 @@ export const env = {
   nodeEnv: optional("NODE_ENV", "development"),
   appBaseUrl: optional("APP_BASE_URL", "http://localhost:3000"),
   storageDir: optional("STORAGE_DIR", "storage"),
+  googleClientId: optional("GOOGLE_CLIENT_ID"),
+  sessionCookieName: optional("SESSION_COOKIE_NAME", "meeting_notes_session"),
   openAiApiKey: required("OPENAI_API_KEY"),
   openAiTranscriptionModel: optional("OPENAI_TRANSCRIPTION_MODEL", "gpt-4o-transcribe"),
   transcriptionChunkSeconds: number("TRANSCRIPTION_CHUNK_SECONDS", 1200),

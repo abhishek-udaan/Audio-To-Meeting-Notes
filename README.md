@@ -4,6 +4,7 @@ Phone-first Node.js backend for turning recordings into structured meeting notes
 
 It supports:
 
+- Google login with per-user note isolation
 - direct audio uploads from an iPhone/Android share sheet via HTTP
 - WhatsApp-triggered processing through a webhook endpoint
 - OpenAI transcription and note generation
@@ -40,6 +41,7 @@ Copy `.env.example` to `.env` and fill in the secrets.
 
 Required:
 
+- `GOOGLE_CLIENT_ID`
 - `OPENAI_API_KEY`
 - `NOTION_API_TOKEN`
 - `NOTION_DATA_SOURCE_ID` or `NOTION_DATABASE_ID`
@@ -160,6 +162,7 @@ Example direct trigger payload:
 
 Open the app in a browser at `/` to use the phone-first recording UI.
 
+- sign in with Google
 - tap `Start Recording`
 - allow microphone access
 - tap `Stop Recording`
@@ -172,6 +175,8 @@ Fallback:
 Saved transcript and note JSON files are also exposed under `/files/...`.
 
 The same UI also supports asking questions across all processed recordings. It searches saved note/transcript JSON, sends the top matching records to OpenAI, and returns an answer with supporting recordings.
+
+Each signed-in user only sees their own generated notes and searchable meeting memory.
 
 Example questions:
 
@@ -210,6 +215,7 @@ Important:
 3. Connect the GitHub repo and select this project.
 4. Fill in these required env vars in Render:
    - `APP_BASE_URL`
+   - `GOOGLE_CLIENT_ID`
    - `OPENAI_API_KEY`
    - `NOTION_API_TOKEN`
    - `NOTION_DATA_SOURCE_ID`

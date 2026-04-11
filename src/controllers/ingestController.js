@@ -6,6 +6,7 @@ export async function uploadAudio(req, res) {
   }
 
   const result = await processRecording({
+    userId: req.user.id,
     filePath: req.file.path,
     title: req.body.title,
     source: req.body.source || "phone-upload",

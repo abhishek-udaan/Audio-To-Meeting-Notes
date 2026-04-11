@@ -2,6 +2,7 @@ import path from "node:path";
 import multer from "multer";
 import { Router } from "express";
 import { uploadAudio } from "../controllers/ingestController.js";
+import { requireAuth } from "../middleware/authMiddleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { env } from "../config/env.js";
 import { uploadsDir } from "../config/paths.js";
@@ -23,6 +24,6 @@ const upload = multer({
   }
 });
 
-router.post("/audio", upload.single("audio"), asyncHandler(uploadAudio));
+router.post("/audio", requireAuth, upload.single("audio"), asyncHandler(uploadAudio));
 
 export default router;

@@ -5,10 +5,11 @@ import { transcribeAudio } from "./transcriptionService.js";
 import { generateMeetingNotes } from "./noteGenerationService.js";
 import { deliverToNotion } from "./notionDeliveryService.js";
 
-export async function processRecording({ filePath, title, source, participants, occurredAt }) {
+export async function processRecording({ userId = "", filePath, title, source, participants, occurredAt }) {
   const recordingId = randomUUID();
   const recording = {
     id: recordingId,
+    userId,
     title: title || `Recording ${recordingId}`,
     source: source || "upload",
     participants: participants || "",
@@ -25,7 +26,7 @@ export async function processRecording({ filePath, title, source, participants, 
     createdAt: new Date().toISOString()
   };
 
-  const transcriptPath = await saveTranscript(recordingId, transcriptPayload);
+  const transcriptPath = await saveTranscript(userId, recordingId, transcriptPayload);
 
   const notesResult = await generateMeetingNotes({
     title: recording.title,
@@ -43,7 +44,7 @@ export async function processRecording({ filePath, title, source, participants, 
     createdAt: new Date().toISOString()
   };
 
-  const notesPath = await saveNotes(recordingId, notesPayload);
+  const notesPath = await saveNotes(userId, recordingId, notesPayload);
 
   const notionResult = await deliverToNotion({
     recording,
@@ -51,7 +52,7 @@ export async function processRecording({ filePath, title, source, participants, 
     transcript: transcription.text
   });
 
-  await saveNotes(recordingId, {
+  await saveNotes(userId, recordingId, {
     ...notesPayload,
     notion: notionResult
   });

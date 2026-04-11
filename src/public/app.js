@@ -1,3 +1,14 @@
+const authPanel = document.getElementById("auth-panel");
+const authStatus = document.getElementById("auth-status");
+const authCopy = document.getElementById("auth-copy");
+const googleSignin = document.getElementById("google-signin");
+const workspace = document.getElementById("workspace");
+const userChip = document.getElementById("user-chip");
+const userAvatar = document.getElementById("user-avatar");
+const userName = document.getElementById("user-name");
+const userEmail = document.getElementById("user-email");
+const logoutButton = document.getElementById("logout-button");
+
 const form = document.getElementById("upload-form");
 const audioInput = document.getElementById("audio");
 const fileLabel = document.getElementById("file-label");
@@ -16,36 +27,35 @@ const notionLink = document.getElementById("notion-link");
 const summaryText = document.getElementById("summary-text");
 const actionItems = document.getElementById("action-items");
 const decisions = document.getElementById("decisions");
+
+const notesGrid = document.getElementById("notes-grid");
+const notesCount = document.getElementById("notes-count");
+const notesEmpty = document.getElementById("notes-empty");
+
 const askForm = document.getElementById("ask-form");
 const questionInput = document.getElementById("question-input");
 const askButton = document.getElementById("ask-button");
-const askStatus = document.getElementById("ask-status");
-const askResult = document.getElementById("ask-result");
-const answerText = document.getElementById("answer-text");
-const answerConfidence = document.getElementById("answer-confidence");
-const supportingRecordings = document.getElementById("supporting-recordings");
-const matchedRecordings = document.getElementById("matched-recordings");
 const knowledgeCount = document.getElementById("knowledge-count");
+const chatThread = document.getElementById("chat-thread");
+
+const state = {
+  authConfig: null,
+  user: null,
+  notes: []
+};
 
 let mediaRecorder = null;
 let mediaStream = null;
 let recordingChunks = [];
 let recordingStartedAt = null;
 let timerInterval = null;
-let recordedBlob = null;
 
 function supportsRecording() {
   return Boolean(window.isSecureContext && navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
 }
 
 function getPreferredMimeType() {
-  const candidates = [
-    "audio/mp4",
-    "audio/webm;codecs=opus",
-    "audio/webm",
-    "audio/ogg;codecs=opus",
-    "audio/ogg"
-  ];
+  const candidates = ["audio/mp4", "audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/ogg"];
 
   if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
     return "";
@@ -54,20 +64,21 @@ function getPreferredMimeType() {
   return candidates.find((mimeType) => MediaRecorder.isTypeSupported(mimeType)) || "";
 }
 
-function toBrowserFileUrl(filePath) {
-  if (!filePath) return "#";
+async function fetchJson(url, options = {}) {
+  const response = await fetch(url, {
+    credentials: "same-origin",
+    ...options
+  });
 
-  const normalized = filePath.replaceAll("\\", "/");
+  const payload = await response.json().catch(() => ({}));
 
-  if (normalized.includes("/storage/transcripts/")) {
-    return `/files/transcripts/${normalized.split("/").pop()}`;
+  if (!response.ok) {
+    const error = new Error(payload.error || "Request failed.");
+    error.status = response.status;
+    throw error;
   }
 
-  if (normalized.includes("/storage/notes/")) {
-    return `/files/notes/${normalized.split("/").pop()}`;
-  }
-
-  return "#";
+  return payload;
 }
 
 function setStatus(type, message) {
@@ -76,35 +87,10 @@ function setStatus(type, message) {
   statusCopy.textContent = message;
 }
 
-function formatDuration(totalSeconds) {
-  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
-  const seconds = String(totalSeconds % 60).padStart(2, "0");
-  return `${minutes}:${seconds}`;
-}
-
 function setRecordingUi({ isRecording, stateText }) {
   recordButton.classList.toggle("recording", isRecording);
   recordButton.textContent = isRecording ? "Stop Recording" : "Start Recording";
   recordingState.textContent = stateText;
-}
-
-function setRecorderAvailability() {
-  if (supportsRecording()) {
-    recorderHelp.textContent = "Tap start to grant microphone access, then stop to upload automatically.";
-    recordButton.disabled = false;
-    return;
-  }
-
-  if (!window.isSecureContext) {
-    recorderHelp.textContent = "Recording needs a secure HTTPS page. Use the deployed app URL, not an insecure local address.";
-  } else if (!navigator.mediaDevices?.getUserMedia) {
-    recorderHelp.textContent = "This browser cannot access the microphone. Use Safari on iPhone or Chrome on Android.";
-  } else {
-    recorderHelp.textContent = "This browser does not support in-browser recording. You can still upload a file below.";
-  }
-
-  recordButton.disabled = true;
-  setRecordingUi({ isRecording: false, stateText: "Recording unavailable" });
 }
 
 function stopTimer() {
@@ -112,11 +98,16 @@ function stopTimer() {
   timerInterval = null;
 }
 
+function formatDuration(totalSeconds) {
+  const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
+  const seconds = String(totalSeconds % 60).padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
 function startTimer() {
   recordingStartedAt = Date.now();
   recordingTimer.textContent = "00:00";
   stopTimer();
-
   timerInterval = window.setInterval(() => {
     const elapsedSeconds = Math.floor((Date.now() - recordingStartedAt) / 1000);
     recordingTimer.textContent = formatDuration(elapsedSeconds);
@@ -141,7 +132,6 @@ function createRecordedFile(blob) {
 
 function renderList(element, items, formatter = (item) => item) {
   element.innerHTML = "";
-
   (items || []).forEach((item) => {
     const li = document.createElement("li");
     li.textContent = formatter(item);
@@ -149,70 +139,227 @@ function renderList(element, items, formatter = (item) => item) {
   });
 }
 
-function setAskStatus(message) {
-  askStatus.textContent = message;
+function addChatMessage(role, content, options = {}) {
+  const wrapper = document.createElement("div");
+  wrapper.className = `chat-message ${role}`;
+
+  const bubble = document.createElement("div");
+  bubble.className = "chat-bubble";
+  bubble.textContent = content;
+  wrapper.appendChild(bubble);
+
+  if (options.supportingRecordings?.length) {
+    const support = document.createElement("div");
+    support.className = "chat-support";
+
+    options.supportingRecordings.forEach((item) => {
+      const supportItem = document.createElement("div");
+      supportItem.className = "chat-support-item";
+      supportItem.textContent = `${item.title || item.recordingId} • ${item.reason || "Referenced"}`;
+      support.appendChild(supportItem);
+    });
+
+    wrapper.appendChild(support);
+  }
+
+  chatThread.appendChild(wrapper);
+  chatThread.scrollTop = chatThread.scrollHeight;
 }
 
-function renderMatchedRecordings(matches = []) {
-  matchedRecordings.innerHTML = "";
+function setRecorderAvailability() {
+  if (supportsRecording()) {
+    recorderHelp.textContent = "Tap start to grant microphone access, then stop to upload automatically.";
+    recordButton.disabled = false;
+    return;
+  }
 
-  matches.forEach((match) => {
+  if (!window.isSecureContext) {
+    recorderHelp.textContent = "Recording needs a secure HTTPS page. Use your deployed app URL.";
+  } else if (!navigator.mediaDevices?.getUserMedia) {
+    recorderHelp.textContent = "This browser cannot access the microphone. Use Safari on iPhone or Chrome on Android.";
+  } else {
+    recorderHelp.textContent = "This browser does not support in-browser recording. Upload a file instead.";
+  }
+
+  recordButton.disabled = true;
+  setRecordingUi({ isRecording: false, stateText: "Recording unavailable" });
+}
+
+function renderUser() {
+  if (!state.user) {
+    userChip.classList.add("hidden");
+    workspace.classList.add("hidden");
+    authPanel.classList.remove("hidden");
+    return;
+  }
+
+  userName.textContent = state.user.name || "Signed in";
+  userEmail.textContent = state.user.email || "";
+  userAvatar.src = state.user.picture || "";
+  userAvatar.alt = state.user.name || "User avatar";
+  userChip.classList.remove("hidden");
+  workspace.classList.remove("hidden");
+  authPanel.classList.add("hidden");
+}
+
+function renderNotes() {
+  notesGrid.innerHTML = "";
+  const notes = state.notes || [];
+
+  notesCount.textContent = `${notes.length} note${notes.length === 1 ? "" : "s"}`;
+  knowledgeCount.textContent = `${notes.length} recording${notes.length === 1 ? "" : "s"} searchable`;
+  notesEmpty.classList.toggle("hidden", notes.length > 0);
+
+  notes.forEach((note) => {
     const card = document.createElement("article");
-    card.className = "match-card";
+    card.className = "note-card";
 
-    const title = document.createElement("h3");
-    title.textContent = match.title;
+    const heading = document.createElement("div");
+    heading.className = "note-card-header";
+
+    const title = document.createElement("h4");
+    title.textContent = note.title;
+
+    const meta = document.createElement("p");
+    meta.className = "note-meta";
+    meta.textContent = [note.participants, note.source].filter(Boolean).join(" • ") || "No extra metadata";
+
+    heading.appendChild(title);
+    heading.appendChild(meta);
 
     const summary = document.createElement("p");
-    summary.textContent = match.summary || "No summary saved for this recording.";
+    summary.className = "note-summary";
+    summary.textContent = note.summary || "No summary available.";
+
+    const stats = document.createElement("div");
+    stats.className = "note-stats";
+    ["actionItems", "decisions", "followUps"].forEach((key) => {
+      const stat = document.createElement("span");
+      const labelMap = {
+        actionItems: "Actions",
+        decisions: "Decisions",
+        followUps: "Follow-ups"
+      };
+      const countMap = {
+        actionItems: note.actionItemCount,
+        decisions: note.decisionCount,
+        followUps: note.followUpCount
+      };
+      stat.textContent = `${countMap[key]} ${labelMap[key]}`;
+      stats.appendChild(stat);
+    });
 
     const links = document.createElement("div");
-    links.className = "match-links";
+    links.className = "note-links";
 
-    const transcriptAnchor = document.createElement("a");
-    transcriptAnchor.href = match.transcriptUrl || "#";
-    transcriptAnchor.target = "_blank";
-    transcriptAnchor.rel = "noreferrer";
-    transcriptAnchor.textContent = "Transcript";
+    [
+      { href: note.transcriptUrl, label: "Transcript" },
+      { href: note.notesUrl, label: "JSON Notes" },
+      { href: note.notionUrl, label: "Notion" }
+    ]
+      .filter((item) => item.href)
+      .forEach((item) => {
+        const anchor = document.createElement("a");
+        anchor.href = item.href;
+        anchor.target = "_blank";
+        anchor.rel = "noreferrer";
+        anchor.textContent = item.label;
+        links.appendChild(anchor);
+      });
 
-    const notesAnchor = document.createElement("a");
-    notesAnchor.href = match.notesUrl || "#";
-    notesAnchor.target = "_blank";
-    notesAnchor.rel = "noreferrer";
-    notesAnchor.textContent = "Notes";
-
-    links.appendChild(transcriptAnchor);
-    links.appendChild(notesAnchor);
-
-    if (match.notionUrl) {
-      const notionAnchor = document.createElement("a");
-      notionAnchor.href = match.notionUrl;
-      notionAnchor.target = "_blank";
-      notionAnchor.rel = "noreferrer";
-      notionAnchor.textContent = "Notion";
-      links.appendChild(notionAnchor);
-    }
-
-    card.appendChild(title);
+    card.appendChild(heading);
     card.appendChild(summary);
+    card.appendChild(stats);
     card.appendChild(links);
-    matchedRecordings.appendChild(card);
+    notesGrid.appendChild(card);
   });
 }
 
-async function loadKnowledgeOverview() {
-  try {
-    const response = await fetch("/api/knowledge/recordings");
-    const payload = await response.json();
+async function loadNotes() {
+  if (!state.user) return;
 
-    if (!response.ok) {
-      throw new Error(payload.error || "Could not load recordings.");
+  try {
+    const payload = await fetchJson("/api/notes");
+    state.notes = payload.notes || [];
+    renderNotes();
+  } catch (error) {
+    notesCount.textContent = "Could not load notes";
+    knowledgeCount.textContent = "Unavailable";
+  }
+}
+
+async function loadAuthState() {
+  const [config, me] = await Promise.all([fetchJson("/api/auth/config"), fetchJson("/api/auth/me")]);
+  state.authConfig = config;
+  state.user = me.user;
+
+  if (!config.authEnabled) {
+    authCopy.textContent = "Add GOOGLE_CLIENT_ID in the backend environment to enable Google sign-in.";
+    authStatus.textContent = "Google login is not configured yet.";
+    googleSignin.innerHTML = "";
+  } else if (!state.user) {
+    authStatus.textContent = "Sign in to access your private notes, uploads, and meeting assistant.";
+    await renderGoogleButton(config.googleClientId);
+  } else {
+    authStatus.textContent = "Signed in.";
+  }
+
+  renderUser();
+
+  if (state.user) {
+    await loadNotes();
+    setRecorderAvailability();
+  }
+}
+
+function loadGoogleScript() {
+  return new Promise((resolve, reject) => {
+    if (window.google?.accounts?.id) {
+      resolve();
+      return;
     }
 
-    const count = payload.records?.length || 0;
-    knowledgeCount.textContent = `${count} recording${count === 1 ? "" : "s"} indexed`;
-  } catch (error) {
-    knowledgeCount.textContent = "Could not load recording count";
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.async = true;
+    script.defer = true;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+async function renderGoogleButton(clientId) {
+  try {
+    await loadGoogleScript();
+    googleSignin.innerHTML = "";
+    window.google.accounts.id.initialize({
+      client_id: clientId,
+      callback: async ({ credential }) => {
+        try {
+          await fetchJson("/api/auth/google", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ credential })
+          });
+          authStatus.textContent = "Signed in successfully.";
+          await loadAuthState();
+        } catch (error) {
+          authStatus.textContent = error.message;
+        }
+      }
+    });
+
+    window.google.accounts.id.renderButton(googleSignin, {
+      theme: "outline",
+      size: "large",
+      shape: "pill",
+      width: Math.min(window.innerWidth - 64, 360)
+    });
+  } catch {
+    authStatus.textContent = "Could not load Google sign-in right now.";
   }
 }
 
@@ -226,19 +373,13 @@ async function submitAudio(file) {
   setStatus("loading", "Uploading audio, transcribing, generating notes, and sending the result to Notion.");
 
   try {
-    const response = await fetch("/api/uploads/audio", {
+    const payload = await fetchJson("/api/uploads/audio", {
       method: "POST",
       body: formData
     });
 
-    const payload = await response.json();
-
-    if (!response.ok) {
-      throw new Error(payload.error || "Upload failed.");
-    }
-
-    transcriptLink.href = toBrowserFileUrl(payload.transcriptPath);
-    notesLink.href = toBrowserFileUrl(payload.notesPath);
+    transcriptLink.href = `/api/notes/${payload.recordingId}/transcript`;
+    notesLink.href = `/api/notes/${payload.recordingId}/notes`;
     notionLink.href = payload.notion?.url || "#";
     summaryText.textContent = payload.notes?.summary || "No summary returned.";
 
@@ -249,6 +390,7 @@ async function submitAudio(file) {
 
     result.classList.remove("hidden");
     setStatus("success", "Finished. Your transcript, notes, and Notion page are ready.");
+    await loadNotes();
   } catch (error) {
     setStatus("error", error.message);
   } finally {
@@ -268,14 +410,13 @@ async function stopRecordingAndUpload() {
 
 async function startRecording() {
   if (!supportsRecording()) {
-    setStatus("error", "This browser cannot record audio here. Try the HTTPS deployed app or use file upload.");
+    setStatus("error", "This browser cannot record audio here. Try file upload instead.");
     return;
   }
 
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recordingChunks = [];
-    recordedBlob = null;
     recordingPreview.classList.add("hidden");
     recordingPreview.removeAttribute("src");
 
@@ -296,9 +437,8 @@ async function startRecording() {
 
     mediaRecorder.addEventListener("stop", async () => {
       stopTimer();
-
       const mimeType = mediaRecorder.mimeType || "audio/webm";
-      recordedBlob = new Blob(recordingChunks, { type: mimeType });
+      const recordedBlob = new Blob(recordingChunks, { type: mimeType });
 
       if (!recordedBlob.size) {
         setStatus("error", "No audio was captured. Please try again or use file upload.");
@@ -307,7 +447,6 @@ async function startRecording() {
       }
 
       const previewUrl = URL.createObjectURL(recordedBlob);
-
       recordingPreview.src = previewUrl;
       recordingPreview.classList.remove("hidden");
 
@@ -315,9 +454,7 @@ async function startRecording() {
       mediaStream = null;
 
       setRecordingUi({ isRecording: false, stateText: "Recording stopped. Uploading automatically..." });
-
       await submitAudio(createRecordedFile(recordedBlob));
-
       setRecordingUi({ isRecording: false, stateText: "Microphone idle" });
     });
 
@@ -325,19 +462,14 @@ async function startRecording() {
     setRecordingUi({ isRecording: true, stateText: "Recording in progress..." });
     startTimer();
   } catch (error) {
-    const message =
-      error?.name === "NotAllowedError"
-        ? "Microphone permission was denied. Allow microphone access and try again."
-        : "Microphone access was unavailable. You can still upload a file below.";
-
-    setStatus("error", message);
+    setStatus("error", "Microphone access was unavailable. You can still upload a file.");
     setRecordingUi({ isRecording: false, stateText: "Microphone idle" });
   }
 }
 
 audioInput.addEventListener("change", () => {
   const file = audioInput.files?.[0];
-  fileLabel.textContent = file ? `${file.name} • ${Math.round(file.size / 1024)} KB` : "M4A, MP3, WAV, OGG, MP4";
+  fileLabel.textContent = file ? `${file.name} • ${Math.round(file.size / 1024)} KB` : "M4A, MP3, WAV, OGG, MP4 up to 150 MB";
 });
 
 recordButton.addEventListener("click", async () => {
@@ -351,7 +483,6 @@ recordButton.addEventListener("click", async () => {
 
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-
   if (!audioInput.files?.length) {
     setStatus("error", "Choose an audio file before submitting.");
     return;
@@ -360,24 +491,17 @@ form.addEventListener("submit", async (event) => {
   await submitAudio(audioInput.files[0]);
 });
 
-setRecorderAvailability();
-loadKnowledgeOverview();
-
 askForm.addEventListener("submit", async (event) => {
   event.preventDefault();
-
   const question = questionInput.value.trim();
-  if (!question) {
-    setAskStatus("Enter a question before searching your recordings.");
-    return;
-  }
+  if (!question) return;
 
+  addChatMessage("user", question);
+  questionInput.value = "";
   askButton.disabled = true;
-  askResult.classList.add("hidden");
-  setAskStatus("Searching your saved recordings and drafting an answer.");
 
   try {
-    const response = await fetch("/api/knowledge/ask", {
+    const payload = await fetchJson("/api/knowledge/ask", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
@@ -385,25 +509,30 @@ askForm.addEventListener("submit", async (event) => {
       body: JSON.stringify({ question })
     });
 
-    const payload = await response.json();
-    if (!response.ok) {
-      throw new Error(payload.error || "Question answering failed.");
-    }
-
-    answerText.textContent = payload.answer || "No answer returned.";
-    answerConfidence.textContent = `Confidence: ${payload.confidence || "unknown"}`;
-    renderList(
-      supportingRecordings,
-      payload.supportingRecordings,
-      (item) => `${item.title || item.recordingId} • ${item.reason || "Referenced in the answer"}`
-    );
-    renderMatchedRecordings(payload.matches || []);
-
-    askResult.classList.remove("hidden");
-    setAskStatus("Answer ready.");
+    addChatMessage("assistant", payload.answer || "No answer returned.", {
+      supportingRecordings: payload.supportingRecordings
+    });
   } catch (error) {
-    setAskStatus(error.message);
+    addChatMessage("assistant", error.message || "Search failed.");
   } finally {
     askButton.disabled = false;
   }
+});
+
+logoutButton.addEventListener("click", async () => {
+  await fetchJson("/api/auth/logout", { method: "POST" });
+  state.user = null;
+  state.notes = [];
+  renderUser();
+  notesGrid.innerHTML = "";
+  chatThread.innerHTML = `
+    <div class="chat-message assistant">
+      <div class="chat-bubble">Ask about decisions, action items, owners, or follow-ups across your meetings.</div>
+    </div>
+  `;
+  await loadAuthState();
+});
+
+loadAuthState().catch(() => {
+  authStatus.textContent = "The app could not initialize. Please refresh and try again.";
 });

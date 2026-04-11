@@ -24,6 +24,7 @@ export async function receiveWhatsappWebhook(req, res) {
   }
 
   const result = await processRecording({
+    userId: "",
     filePath: audio.filePath,
     title: req.body.title || audio.title,
     source: req.body.source || audio.source,

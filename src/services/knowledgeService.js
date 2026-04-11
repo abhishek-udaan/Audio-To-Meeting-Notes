@@ -43,8 +43,8 @@ function toPublicFileUrl(filePath, kind) {
   return `/files/${kind}/${filename}`;
 }
 
-export async function listKnowledgeRecords() {
-  const records = await loadKnowledgeRecords();
+export async function listKnowledgeRecords(userId) {
+  const records = await loadKnowledgeRecords(userId);
 
   return records.map((record) => ({
     recordingId: record.recordingId,
@@ -53,20 +53,20 @@ export async function listKnowledgeRecords() {
     source: record.source,
     occurredAt: record.occurredAt,
     summary: record.summary,
-    transcriptUrl: toPublicFileUrl(record.transcriptPath, "transcripts"),
-    notesUrl: toPublicFileUrl(record.notesPath, "notes"),
+    transcriptUrl: `/api/notes/${record.recordingId}/transcript`,
+    notesUrl: `/api/notes/${record.recordingId}/notes`,
     notionUrl: record.notionUrl || ""
   }));
 }
 
-export async function answerQuestionAcrossRecordings(question, options = {}) {
+export async function answerQuestionAcrossRecordings(userId, question, options = {}) {
   const normalizedQuestion = question?.trim();
 
   if (!normalizedQuestion) {
     throw new Error("Question is required.");
   }
 
-  const records = await loadKnowledgeRecords();
+  const records = await loadKnowledgeRecords(userId);
   if (!records.length) {
     return {
       answer: "No processed recordings are available yet.",
@@ -131,8 +131,8 @@ export async function answerQuestionAcrossRecordings(question, options = {}) {
       recordingId: match.recordingId,
       title: match.title,
       summary: match.summary,
-      transcriptUrl: toPublicFileUrl(match.transcriptPath, "transcripts"),
-      notesUrl: toPublicFileUrl(match.notesPath, "notes"),
+      transcriptUrl: `/api/notes/${match.recordingId}/transcript`,
+      notesUrl: `/api/notes/${match.recordingId}/notes`,
       notionUrl: match.notionUrl || ""
     })),
     supportingRecordings: parsed.supportingRecordings || []
