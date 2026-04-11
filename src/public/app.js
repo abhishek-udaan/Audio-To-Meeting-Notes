@@ -31,6 +31,17 @@ const decisions = document.getElementById("decisions");
 const notesGrid = document.getElementById("notes-grid");
 const notesCount = document.getElementById("notes-count");
 const notesEmpty = document.getElementById("notes-empty");
+const noteViewer = document.getElementById("note-viewer");
+const viewerClose = document.getElementById("viewer-close");
+const viewerTitle = document.getElementById("viewer-title");
+const viewerMeta = document.getElementById("viewer-meta");
+const viewerSummary = document.getElementById("viewer-summary");
+const viewerDetailedNotes = document.getElementById("viewer-detailed-notes");
+const viewerActionItems = document.getElementById("viewer-action-items");
+const viewerDecisions = document.getElementById("viewer-decisions");
+const viewerFollowUps = document.getElementById("viewer-follow-ups");
+const viewerOpenQuestions = document.getElementById("viewer-open-questions");
+const viewerRisks = document.getElementById("viewer-risks");
 
 const askForm = document.getElementById("ask-form");
 const questionInput = document.getElementById("question-input");
@@ -258,6 +269,14 @@ function renderNotes() {
     const links = document.createElement("div");
     links.className = "note-links";
 
+    const viewButton = document.createElement("button");
+    viewButton.type = "button";
+    viewButton.className = "note-view-button";
+    viewButton.textContent = "Open in app";
+    viewButton.addEventListener("click", () => openNoteViewer(note));
+
+    links.appendChild(viewButton);
+
     [
       { href: note.transcriptUrl, label: "Transcript" },
       { href: note.notesUrl, label: "JSON Notes" },
@@ -279,6 +298,46 @@ function renderNotes() {
     card.appendChild(links);
     notesGrid.appendChild(card);
   });
+}
+
+function renderEmptyList(element, items, formatter = (item) => item) {
+  element.innerHTML = "";
+
+  if (!items?.length) {
+    const li = document.createElement("li");
+    li.textContent = "Nothing captured here.";
+    element.appendChild(li);
+    return;
+  }
+
+  items.forEach((item) => {
+    const li = document.createElement("li");
+    li.textContent = formatter(item);
+    element.appendChild(li);
+  });
+}
+
+function openNoteViewer(note) {
+  viewerTitle.textContent = note.title || "Meeting note";
+  viewerMeta.textContent = [note.participants, note.source].filter(Boolean).join(" • ");
+  viewerSummary.textContent = note.summary || "No summary available.";
+  renderEmptyList(viewerDetailedNotes, note.detailedNotes);
+  renderEmptyList(
+    viewerActionItems,
+    note.actionItems,
+    (item) => `${item.task} • ${item.owner || "Unassigned"} • ${item.deadline || "No deadline"}`
+  );
+  renderEmptyList(viewerDecisions, note.decisions);
+  renderEmptyList(viewerFollowUps, note.followUps);
+  renderEmptyList(viewerOpenQuestions, note.openQuestions);
+  renderEmptyList(viewerRisks, note.risks);
+  noteViewer.classList.remove("hidden");
+  document.body.classList.add("modal-open");
+}
+
+function closeNoteViewer() {
+  noteViewer.classList.add("hidden");
+  document.body.classList.remove("modal-open");
 }
 
 async function loadNotes() {
@@ -552,4 +611,11 @@ chatLauncher.addEventListener("click", () => {
 
 chatClose.addEventListener("click", () => {
   chatPopup.classList.add("hidden");
+});
+
+viewerClose.addEventListener("click", closeNoteViewer);
+noteViewer.addEventListener("click", (event) => {
+  if (event.target.classList.contains("note-viewer") || event.target.classList.contains("note-viewer-backdrop")) {
+    closeNoteViewer();
+  }
 });

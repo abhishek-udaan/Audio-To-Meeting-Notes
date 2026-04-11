@@ -174,8 +174,59 @@
       </section>
     </main>
 
+    <section id="note-viewer" class="note-viewer hidden" aria-label="Note details">
+      <div class="note-viewer-backdrop"></div>
+      <div class="note-viewer-sheet panel">
+        <div class="note-viewer-header">
+          <div>
+            <p class="eyebrow">In-app note view</p>
+            <h3 id="viewer-title">Meeting note</h3>
+            <p id="viewer-meta" class="meta-count"></p>
+          </div>
+          <button id="viewer-close" class="chat-close" type="button" aria-label="Close note viewer">X</button>
+        </div>
+
+        <div class="note-viewer-body">
+          <section class="viewer-block">
+            <h4>Summary</h4>
+            <p id="viewer-summary"></p>
+          </section>
+
+          <section class="viewer-block">
+            <h4>Detailed Notes</h4>
+            <ul id="viewer-detailed-notes" class="list"></ul>
+          </section>
+
+          <section class="viewer-block">
+            <h4>Action Items</h4>
+            <ul id="viewer-action-items" class="list"></ul>
+          </section>
+
+          <section class="viewer-block">
+            <h4>Decisions</h4>
+            <ul id="viewer-decisions" class="list"></ul>
+          </section>
+
+          <section class="viewer-block">
+            <h4>Follow-ups</h4>
+            <ul id="viewer-follow-ups" class="list"></ul>
+          </section>
+
+          <section class="viewer-block">
+            <h4>Open Questions</h4>
+            <ul id="viewer-open-questions" class="list"></ul>
+          </section>
+
+          <section class="viewer-block">
+            <h4>Risks</h4>
+            <ul id="viewer-risks" class="list"></ul>
+          </section>
+        </div>
+      </div>
+    </section>
+
     <button id="chat-launcher" class="chat-launcher hidden" type="button" aria-label="Open meeting assistant">
-      <span class="chat-launcher-icon">?</span>
+      <span class="chat-launcher-icon">AI</span>
     </button>
 
     <section id="chat-popup" class="chat-popup hidden" aria-label="Meeting assistant popup">

@@ -19,6 +19,7 @@
 body {
   margin: 0;
   min-height: 100vh;
+  overflow-x: hidden;
   font-family: "Space Grotesk", sans-serif;
   color: var(--text);
   background:
@@ -44,6 +45,7 @@ body::before {
   width: min(100%, 1120px);
   margin: 0 auto;
   padding: 24px 16px 40px;
+  overflow-x: clip;
 }
 
 .topbar,
@@ -65,6 +67,7 @@ body::before {
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
+  flex-wrap: wrap;
 }
 
 .topbar h1,
@@ -145,6 +148,8 @@ body::before {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.72);
   border: 1px solid var(--line);
+  max-width: 100%;
+  flex-wrap: wrap;
 }
 
 .user-avatar {
@@ -293,6 +298,7 @@ body::before {
 .field input,
 .field textarea {
   width: 100%;
+  max-width: 100%;
   border: 1px solid var(--line);
   border-radius: 16px;
   padding: 14px 16px;
@@ -412,6 +418,16 @@ body::before {
   gap: 10px;
 }
 
+.note-view-button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 14px;
+  font: inherit;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, var(--forest), #124731);
+}
+
 .note-stats span {
   padding: 7px 10px;
   border-radius: 999px;
@@ -426,6 +442,7 @@ body::before {
   max-height: 360px;
   overflow: auto;
   padding-right: 4px;
+  min-width: 0;
 }
 
 .chat-message {
@@ -437,10 +454,11 @@ body::before {
 }
 
 .chat-bubble {
-  max-width: min(100%, 720px);
+  max-width: min(100%, 100%);
   padding: 14px 16px;
-  border-radius: 20px;
+  border-radius: 22px;
   line-height: 1.6;
+  box-shadow: 0 10px 24px rgba(71, 44, 15, 0.08);
 }
 
 .chat-message.user .chat-bubble {
@@ -506,11 +524,13 @@ body::before {
   right: 20px;
   bottom: 20px;
   z-index: 30;
-  width: 62px;
-  height: 62px;
+  width: 64px;
+  height: 64px;
   border: 0;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+  background:
+    radial-gradient(circle at top left, rgba(255, 255, 255, 0.28), transparent 40%),
+    linear-gradient(135deg, var(--accent), var(--accent-dark));
   color: white;
   box-shadow: 0 18px 40px rgba(143, 62, 23, 0.3);
   font: inherit;
@@ -518,7 +538,8 @@ body::before {
 }
 
 .chat-launcher-icon {
-  font-size: 1.4rem;
+  font-size: 1rem;
+  letter-spacing: 0.08em;
 }
 
 .chat-popup {
@@ -527,10 +548,14 @@ body::before {
   bottom: 94px;
   z-index: 35;
   width: min(calc(100vw - 24px), 420px);
+  max-width: calc(100vw - 24px);
 }
 
 .chat-popup-shell {
   padding: 18px;
+  background:
+    radial-gradient(circle at top right, rgba(209, 100, 45, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(255, 251, 244, 0.98), rgba(255, 247, 239, 0.96));
 }
 
 .chat-popup-header {
@@ -558,7 +583,101 @@ body::before {
   font-weight: 700;
 }
 
+.note-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 45;
+  display: grid;
+  place-items: end center;
+}
+
+.note-viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(17, 13, 8, 0.42);
+  backdrop-filter: blur(6px);
+}
+
+.note-viewer-sheet {
+  position: relative;
+  width: min(100%, 860px);
+  max-height: min(86vh, 920px);
+  overflow: auto;
+  margin: 16px;
+  padding: 20px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at top left, rgba(29, 106, 74, 0.08), transparent 28%),
+    linear-gradient(180deg, rgba(255, 251, 244, 0.98), rgba(255, 247, 239, 0.95));
+}
+
+.note-viewer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.note-viewer-body {
+  display: grid;
+  gap: 14px;
+}
+
+.viewer-block {
+  padding: 16px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(64, 46, 22, 0.08);
+}
+
+.viewer-block h4 {
+  margin: 0 0 10px;
+}
+
+.viewer-block p {
+  margin: 0;
+  line-height: 1.6;
+}
+
+.modal-open {
+  overflow: hidden;
+}
+
 @media (max-width: 640px) {
+  .shell {
+    padding: 18px 12px 32px;
+  }
+
+  .topbar {
+    align-items: stretch;
+  }
+
+  .user-chip {
+    border-radius: 22px;
+    width: 100%;
+  }
+
+  .hero h2 {
+    max-width: 100%;
+    font-size: clamp(2rem, 11vw, 3rem);
+  }
+
+  .panel-heading,
+  .note-card-header,
+  .note-links,
+  .note-stats,
+  .chat-popup-header,
+  .chat-popup-actions,
+  .note-viewer-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .chat-thread {
+    max-height: 48vh;
+  }
+
   .chat-launcher {
     right: 14px;
     bottom: 14px;
@@ -569,5 +688,12 @@ body::before {
     left: 12px;
     bottom: 88px;
     width: auto;
+  }
+
+  .note-viewer-sheet {
+    width: calc(100% - 16px);
+    margin: 8px;
+    max-height: calc(100vh - 16px);
+    border-radius: 24px;
   }
 }
