@@ -331,13 +331,25 @@ function openNoteViewer(note) {
   renderEmptyList(viewerFollowUps, note.followUps);
   renderEmptyList(viewerOpenQuestions, note.openQuestions);
   renderEmptyList(viewerRisks, note.risks);
+  noteViewer.classList.remove("is-closing");
   noteViewer.classList.remove("hidden");
+  requestAnimationFrame(() => {
+    noteViewer.classList.add("is-visible");
+  });
   document.body.classList.add("modal-open");
 }
 
 function closeNoteViewer() {
-  noteViewer.classList.add("hidden");
+  if (noteViewer.classList.contains("hidden")) return;
+
+  noteViewer.classList.remove("is-visible");
+  noteViewer.classList.add("is-closing");
   document.body.classList.remove("modal-open");
+
+  window.setTimeout(() => {
+    noteViewer.classList.add("hidden");
+    noteViewer.classList.remove("is-closing");
+  }, 260);
 }
 
 async function loadNotes() {
