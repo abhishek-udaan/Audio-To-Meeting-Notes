@@ -8,7 +8,33 @@ import { openai } from "../config/openai.js";
 import { env } from "../config/env.js";
 import { runCommand } from "../utils/process.js";
 
+async function getAudioDurationWithAfinfo(filePath) {
+  const { stdout } = await runCommand("/usr/bin/afinfo", [filePath]);
+  const match = stdout.match(/estimated duration:\s*([0-9.]+)\s*sec/i);
+
+  if (!match) {
+    throw new Error("Could not determine audio duration from afinfo.");
+  }
+
+  const duration = Number.parseFloat(match[1]);
+  if (Number.isNaN(duration)) {
+    throw new Error("afinfo returned an invalid audio duration.");
+  }
+
+  return duration;
+}
+
 async function getAudioDurationSeconds(filePath) {
+  if (process.platform === "darwin") {
+    try {
+      return await getAudioDurationWithAfinfo(filePath);
+    } catch (error) {
+      if (error?.errno !== -86 && error?.code !== -86) {
+        throw error;
+      }
+    }
+  }
+
   const { stdout } = await runCommand(ffprobe.path, [
     "-v",
     "error",
