@@ -37,6 +37,9 @@ const questionInput = document.getElementById("question-input");
 const askButton = document.getElementById("ask-button");
 const knowledgeCount = document.getElementById("knowledge-count");
 const chatThread = document.getElementById("chat-thread");
+const chatLauncher = document.getElementById("chat-launcher");
+const chatPopup = document.getElementById("chat-popup");
+const chatClose = document.getElementById("chat-close");
 
 const state = {
   authConfig: null,
@@ -189,6 +192,8 @@ function renderUser() {
   if (!state.user) {
     userChip.classList.add("hidden");
     workspace.classList.add("hidden");
+    chatLauncher.classList.add("hidden");
+    chatPopup.classList.add("hidden");
     authPanel.classList.remove("hidden");
     return;
   }
@@ -199,6 +204,7 @@ function renderUser() {
   userAvatar.alt = state.user.name || "User avatar";
   userChip.classList.remove("hidden");
   workspace.classList.remove("hidden");
+  chatLauncher.classList.remove("hidden");
   authPanel.classList.add("hidden");
 }
 
@@ -523,6 +529,8 @@ logoutButton.addEventListener("click", async () => {
   await fetchJson("/api/auth/logout", { method: "POST" });
   state.user = null;
   state.notes = [];
+  chatPopup.classList.add("hidden");
+  chatLauncher.classList.add("hidden");
   renderUser();
   notesGrid.innerHTML = "";
   chatThread.innerHTML = `
@@ -535,4 +543,13 @@ logoutButton.addEventListener("click", async () => {
 
 loadAuthState().catch(() => {
   authStatus.textContent = "The app could not initialize. Please refresh and try again.";
+});
+
+chatLauncher.addEventListener("click", () => {
+  chatPopup.classList.remove("hidden");
+  questionInput.focus();
+});
+
+chatClose.addEventListener("click", () => {
+  chatPopup.classList.add("hidden");
 });
