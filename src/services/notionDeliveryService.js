@@ -108,22 +108,6 @@ function paragraphBlock(text) {
   };
 }
 
-function codeBlock(text, language = "plain text") {
-  return {
-    object: "block",
-    type: "code",
-    code: {
-      language,
-      rich_text: [
-        {
-          type: "text",
-          text: { content: truncate(text, NOTION_RICH_TEXT_LIMIT) }
-        }
-      ]
-    }
-  };
-}
-
 function headingBlock(text) {
   return {
     object: "block",
@@ -204,7 +188,7 @@ function transcriptBlocks(transcriptText) {
     return [paragraphBlock("Transcript unavailable.")];
   }
 
-  return parts.map((part) => codeBlock(part));
+  return parts.map((part) => paragraphBlock(part));
 }
 
 function buildChildrenBlocks(notes) {
