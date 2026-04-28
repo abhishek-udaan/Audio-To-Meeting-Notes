@@ -73,6 +73,12 @@ let recordingChunks = [];
 let recordingStartedAt = null;
 let timerInterval = null;
 let activeJobPoller = null;
+let activeRecordingSessionId = null;
+let pendingChunkUploadChain = Promise.resolve();
+let chunkSequence = 0;
+let manualStopRequested = false;
+let wakeLockSentinel = null;
+let recordingFinalizeInFlight = false;
 
 function supportsRecording() {
   return Boolean(window.isSecureContext && navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
@@ -190,6 +196,61 @@ function stopJobPolling() {
   }
 }
 
+async function createRemoteRecordingSession(mimeType) {
+  const metadata = buildRecordingMetadata();
+  const payload = await fetchJson("/api/uploads/recording-sessions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      ...metadata,
+      mimeType
+    })
+  });
+
+  return payload.sessionId;
+}
+
+async function uploadRecordingChunk(sessionId, blob, sequence, attempt = 0) {
+  const formData = new FormData();
+  formData.set("chunk", new File([blob], `chunk-${sequence}.${getRecordedFileExtension(blob.type)}`, { type: blob.type }));
+  formData.set("sequence", String(sequence));
+
+  try {
+    await fetchJson(`/api/uploads/recording-sessions/${sessionId}/chunks`, {
+      method: "POST",
+      body: formData
+    });
+  } catch (error) {
+    if (attempt < 2) {
+      await new Promise((resolve) => window.setTimeout(resolve, 600 * (attempt + 1)));
+      return uploadRecordingChunk(sessionId, blob, sequence, attempt + 1);
+    }
+
+    throw error;
+  }
+}
+
+function queueRecordingChunkUpload(blob) {
+  const sessionId = activeRecordingSessionId;
+  if (!sessionId || !blob?.size) return Promise.resolve();
+
+  const sequence = chunkSequence++;
+  pendingChunkUploadChain = pendingChunkUploadChain.then(() => uploadRecordingChunk(sessionId, blob, sequence));
+  return pendingChunkUploadChain;
+}
+
+async function finalizeRemoteRecordingSession(sessionId) {
+  return fetchJson(`/api/uploads/recording-sessions/${sessionId}/finalize`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({})
+  });
+}
+
 function setRecordingUi({ isRecording, stateText }) {
   recordButton.classList.toggle("recording", isRecording);
   recordButton.textContent = isRecording ? "Stop Recording" : "Start Recording";
@@ -226,11 +287,46 @@ function getRecordedFileExtension(mimeType = "") {
   return "webm";
 }
 
+function buildRecordingMetadata() {
+  const data = new FormData(form);
+  return {
+    title: data.get("title") || "",
+    participants: data.get("participants") || "",
+    source: data.get("source") || "web-ui-recorder"
+  };
+}
+
 function createRecordedFile(blob) {
   const extension = getRecordedFileExtension(blob.type);
   return new File([blob], `recording-${Date.now()}.${extension}`, {
     type: blob.type || "audio/webm"
   });
+}
+
+async function requestWakeLock() {
+  if (!("wakeLock" in navigator) || wakeLockSentinel || document.hidden) return;
+
+  try {
+    wakeLockSentinel = await navigator.wakeLock.request("screen");
+    wakeLockSentinel.addEventListener("release", () => {
+      wakeLockSentinel = null;
+    });
+  } catch {
+    recorderHelp.textContent =
+      "Screen wake lock is not available here. Keep the screen awake and avoid switching apps while recording.";
+  }
+}
+
+async function releaseWakeLock() {
+  if (!wakeLockSentinel) return;
+
+  try {
+    await wakeLockSentinel.release();
+  } catch {
+    // no-op
+  } finally {
+    wakeLockSentinel = null;
+  }
 }
 
 function renderList(element, items, formatter = (item) => item) {
@@ -271,7 +367,8 @@ function addChatMessage(role, content, options = {}) {
 
 function setRecorderAvailability() {
   if (supportsRecording()) {
-    recorderHelp.textContent = "Tap start to grant microphone access, then stop to upload automatically.";
+    recorderHelp.textContent =
+      "Tap start to grant microphone access. Best results come from keeping the screen on and staying in this browser tab while recording.";
     recordButton.disabled = false;
     return;
   }
@@ -577,6 +674,58 @@ async function pollUploadJob(jobId) {
   });
 }
 
+async function finalizeRecordedSessionFlow({ interrupted = false } = {}) {
+  if (!activeRecordingSessionId || recordingFinalizeInFlight) return;
+
+  recordingFinalizeInFlight = true;
+  const sessionId = activeRecordingSessionId;
+  activeRecordingSessionId = null;
+
+  setStatus(
+    "loading",
+    interrupted
+      ? "Recording was interrupted. Finalizing the chunks already uploaded to the server."
+      : "Recording stopped. Finalizing uploaded chunks and starting the AI pipeline."
+  );
+  updateProgressUi({
+    percent: 8,
+    label: interrupted ? "Recovering interrupted recording" : "Finalizing recording",
+    stage: interrupted ? "Using the chunks already saved on the server" : "Joining uploaded chunks on the server",
+    phase: "processing"
+  });
+
+  try {
+    await pendingChunkUploadChain;
+    const kickoff = await finalizeRemoteRecordingSession(sessionId);
+    const job = await pollUploadJob(kickoff.jobId);
+    populateResult(job.result);
+    setStatus("success", "Finished. Your transcript, notes, and Notion page are ready.");
+    updateProgressUi({
+      percent: 100,
+      label: "All done",
+      stage: "Transcript, notes, and Notion page are ready",
+      phase: "success"
+    });
+    await loadNotes();
+  } catch (error) {
+    setStatus("error", error.message || "Recording finalization failed.");
+    updateProgressUi({
+      percent: 100,
+      label: "Recording recovery failed",
+      stage: error.message || "Chunk finalization failed",
+      phase: "error"
+    });
+  } finally {
+    recordingFinalizeInFlight = false;
+    pendingChunkUploadChain = Promise.resolve();
+    chunkSequence = 0;
+    manualStopRequested = false;
+    submitButton.disabled = false;
+    recordButton.disabled = false;
+    await releaseWakeLock();
+  }
+}
+
 async function submitAudio(file) {
   const formData = new FormData(form);
   formData.set("audio", file);
@@ -635,6 +784,7 @@ async function stopRecordingAndUpload() {
     return;
   }
 
+  manualStopRequested = true;
   setRecordingUi({ isRecording: false, stateText: "Finishing recording..." });
   mediaRecorder.stop();
 }
@@ -648,16 +798,52 @@ async function startRecording() {
   try {
     mediaStream = await navigator.mediaDevices.getUserMedia({ audio: true });
     recordingChunks = [];
+    pendingChunkUploadChain = Promise.resolve();
+    chunkSequence = 0;
+    manualStopRequested = false;
+    recordingFinalizeInFlight = false;
     recordingPreview.classList.add("hidden");
     recordingPreview.removeAttribute("src");
 
     const mimeType = getPreferredMimeType();
     mediaRecorder = mimeType ? new MediaRecorder(mediaStream, { mimeType }) : new MediaRecorder(mediaStream);
+    activeRecordingSessionId = await createRemoteRecordingSession(mediaRecorder.mimeType || mimeType || "audio/webm");
+    await requestWakeLock();
 
     mediaRecorder.addEventListener("dataavailable", (event) => {
       if (event.data.size > 0) {
         recordingChunks.push(event.data);
+        queueRecordingChunkUpload(event.data).catch((error) => {
+          setStatus("error", `Chunk upload failed: ${error.message}`);
+          setRecordingUi({ isRecording: false, stateText: "Upload interrupted" });
+          if (mediaRecorder?.state === "recording") {
+            manualStopRequested = false;
+            mediaRecorder.stop();
+          }
+        });
       }
+    });
+
+    mediaRecorder.addEventListener("pause", () => {
+      setStatus(
+        "loading",
+        document.hidden
+          ? "Recording is paused because the browser is in the background. Return to this tab to resume."
+          : "Recording paused unexpectedly. Attempting to resume."
+      );
+
+      if (!document.hidden && mediaRecorder?.state === "paused") {
+        try {
+          mediaRecorder.resume();
+        } catch {
+          // no-op
+        }
+      }
+    });
+
+    mediaRecorder.addEventListener("resume", () => {
+      setStatus("loading", "Recording resumed. Chunks continue uploading while the tab stays active.");
+      setRecordingUi({ isRecording: true, stateText: "Recording in progress..." });
     });
 
     mediaRecorder.addEventListener("error", () => {
@@ -674,6 +860,9 @@ async function startRecording() {
       if (!recordedBlob.size) {
         setStatus("error", "No audio was captured. Please try again or use file upload.");
         setRecordingUi({ isRecording: false, stateText: "No recording captured" });
+        submitButton.disabled = false;
+        recordButton.disabled = false;
+        await releaseWakeLock();
         return;
       }
 
@@ -684,15 +873,31 @@ async function startRecording() {
       mediaStream?.getTracks().forEach((track) => track.stop());
       mediaStream = null;
 
-      setRecordingUi({ isRecording: false, stateText: "Recording stopped. Uploading automatically..." });
-      await submitAudio(createRecordedFile(recordedBlob));
+      setRecordingUi({
+        isRecording: false,
+        stateText: manualStopRequested ? "Recording stopped. Finalizing..." : "Recording interrupted. Recovering..."
+      });
+      await finalizeRecordedSessionFlow({ interrupted: !manualStopRequested });
       setRecordingUi({ isRecording: false, stateText: "Microphone idle" });
     });
 
-    mediaRecorder.start();
+    mediaRecorder.start(10000);
+    submitButton.disabled = true;
+    recordButton.disabled = false;
     setRecordingUi({ isRecording: true, stateText: "Recording in progress..." });
+    setStatus(
+      "loading",
+      "Recording is live. Chunks are being uploaded as you speak. For best reliability, keep the screen awake and stay in this browser tab."
+    );
     startTimer();
   } catch (error) {
+    activeRecordingSessionId = null;
+    mediaStream?.getTracks().forEach((track) => track.stop());
+    mediaStream = null;
+    stopTimer();
+    submitButton.disabled = false;
+    recordButton.disabled = false;
+    await releaseWakeLock();
     setStatus("error", "Microphone access was unavailable. You can still upload a file.");
     setRecordingUi({ isRecording: false, stateText: "Microphone idle" });
   }
@@ -771,6 +976,28 @@ loadAuthState().catch(() => {
 });
 
 resetProgressUi();
+
+document.addEventListener("visibilitychange", async () => {
+  if (!mediaRecorder || mediaRecorder.state === "inactive") return;
+
+  if (document.hidden) {
+    recorderHelp.textContent =
+      "Background recording is limited by mobile browsers. Chunks already uploaded are safe, but keep the tab open and the screen awake for best reliability.";
+    return;
+  }
+
+  recorderHelp.textContent =
+    "Tap start to grant microphone access. Best results come from keeping the screen on and staying in the browser tab while recording.";
+  await requestWakeLock();
+
+  if (mediaRecorder.state === "paused") {
+    try {
+      mediaRecorder.resume();
+    } catch {
+      // no-op
+    }
+  }
+});
 
 chatLauncher.addEventListener("click", () => {
   chatPopup.classList.remove("hidden");

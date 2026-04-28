@@ -1,7 +1,14 @@
 import path from "node:path";
 import multer from "multer";
 import { Router } from "express";
-import { getUploadJobStatus, uploadAudio, uploadAudioAsync } from "../controllers/ingestController.js";
+import {
+  createRecordingSessionController,
+  finalizeRecordingSessionController,
+  getUploadJobStatus,
+  uploadAudio,
+  uploadAudioAsync,
+  uploadRecordingChunkController
+} from "../controllers/ingestController.js";
 import { requireAuth } from "../middleware/authMiddleware.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { env } from "../config/env.js";
@@ -24,8 +31,23 @@ const upload = multer({
   }
 });
 
+const chunkUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: Math.min(env.maxUploadMb, 25) * 1024 * 1024
+  }
+});
+
 router.post("/audio", requireAuth, upload.single("audio"), asyncHandler(uploadAudio));
 router.post("/audio/async", requireAuth, upload.single("audio"), asyncHandler(uploadAudioAsync));
 router.get("/jobs/:jobId", requireAuth, asyncHandler(getUploadJobStatus));
+router.post("/recording-sessions", requireAuth, asyncHandler(createRecordingSessionController));
+router.post(
+  "/recording-sessions/:sessionId/chunks",
+  requireAuth,
+  chunkUpload.single("chunk"),
+  asyncHandler(uploadRecordingChunkController)
+);
+router.post("/recording-sessions/:sessionId/finalize", requireAuth, asyncHandler(finalizeRecordingSessionController));
 
 export default router;

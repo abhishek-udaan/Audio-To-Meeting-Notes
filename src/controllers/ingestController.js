@@ -6,6 +6,12 @@ import {
   getProgressJob,
   updateProgressJob
 } from "../services/progressJobService.js";
+import {
+  appendRecordingChunk,
+  cleanupRecordingSession,
+  createRecordingSession,
+  finalizeRecordingSession
+} from "../services/recordingSessionService.js";
 
 export async function uploadAudio(req, res) {
   if (!req.file) {
@@ -91,5 +97,91 @@ export async function getUploadJobStatus(req, res) {
       createdAt: job.createdAt,
       updatedAt: job.updatedAt
     }
+  });
+}
+
+export async function createRecordingSessionController(req, res) {
+  const session = await createRecordingSession({
+    userId: req.user.id,
+    title: req.body.title,
+    source: req.body.source || "web-recorder",
+    participants: req.body.participants,
+    occurredAt: req.body.occurredAt,
+    mimeType: req.body.mimeType
+  });
+
+  return res.status(201).json({
+    ok: true,
+    sessionId: session.id
+  });
+}
+
+export async function uploadRecordingChunkController(req, res) {
+  if (!req.file) {
+    return res.status(400).json({ error: "Expected multipart form-data field `chunk`." });
+  }
+
+  const sequence = Number.parseInt(req.body.sequence || "0", 10);
+  if (!Number.isInteger(sequence) || sequence < 0) {
+    return res.status(400).json({ error: "Chunk sequence must be a non-negative integer." });
+  }
+
+  const result = await appendRecordingChunk({
+    sessionId: req.params.sessionId,
+    userId: req.user.id,
+    buffer: req.file.buffer,
+    sequence
+  });
+
+  return res.status(202).json({
+    ok: true,
+    ...result
+  });
+}
+
+export async function finalizeRecordingSessionController(req, res) {
+  const { session, filePath } = await finalizeRecordingSession({
+    sessionId: req.params.sessionId,
+    userId: req.user.id
+  });
+
+  const job = createProgressJob({
+    userId: req.user.id,
+    fileName: `${session.id}.mp3`
+  });
+
+  updateProgressJob(job.id, {
+    status: "processing",
+    progress: 10,
+    stage: "uploaded",
+    message: "Recording finalized. Preparing AI pipeline."
+  });
+
+  processRecording({
+    userId: req.user.id,
+    filePath,
+    title: session.title,
+    source: session.source,
+    participants: session.participants,
+    occurredAt: session.occurredAt,
+    onProgress: (payload) => updateProgressJob(job.id, payload)
+  })
+    .then(async (result) => {
+      completeProgressJob(job.id, {
+        ok: true,
+        ...result
+      });
+      await cleanupRecordingSession(session.id);
+    })
+    .catch(async (error) => {
+      console.error(error);
+      failProgressJob(job.id, error);
+      await cleanupRecordingSession(session.id);
+    });
+
+  return res.status(202).json({
+    ok: true,
+    jobId: job.id,
+    statusUrl: `/api/uploads/jobs/${job.id}`
   });
 }
