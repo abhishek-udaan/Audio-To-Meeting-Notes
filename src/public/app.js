@@ -20,6 +20,15 @@ const recordingPreview = document.getElementById("recording-preview");
 const recorderHelp = document.getElementById("recorder-help");
 const statusBadge = document.getElementById("status-badge");
 const statusCopy = document.getElementById("status-copy");
+const progressPanel = document.getElementById("progress-panel");
+const progressLabel = document.getElementById("progress-label");
+const progressStage = document.getElementById("progress-stage");
+const progressPercent = document.getElementById("progress-percent");
+const progressFill = document.getElementById("progress-fill");
+const stepUpload = document.getElementById("step-upload");
+const stepTranscription = document.getElementById("step-transcription");
+const stepNotes = document.getElementById("step-notes");
+const stepNotion = document.getElementById("step-notion");
 const result = document.getElementById("result");
 const transcriptLink = document.getElementById("transcript-link");
 const notesLink = document.getElementById("notes-link");
@@ -63,6 +72,7 @@ let mediaStream = null;
 let recordingChunks = [];
 let recordingStartedAt = null;
 let timerInterval = null;
+let activeJobPoller = null;
 
 function supportsRecording() {
   return Boolean(window.isSecureContext && navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
@@ -95,10 +105,89 @@ async function fetchJson(url, options = {}) {
   return payload;
 }
 
+function uploadAudioWithProgress(url, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", url);
+    xhr.responseType = "json";
+    xhr.withCredentials = true;
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (!event.lengthComputable) return;
+      onProgress?.(event.loaded / event.total);
+    });
+
+    xhr.addEventListener("load", () => {
+      const payload = xhr.response || {};
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(payload);
+        return;
+      }
+
+      const error = new Error(payload.error || "Upload failed.");
+      error.status = xhr.status;
+      reject(error);
+    });
+
+    xhr.addEventListener("error", () => {
+      reject(new Error("Network error while uploading audio."));
+    });
+
+    xhr.send(formData);
+  });
+}
+
 function setStatus(type, message) {
   statusBadge.className = `status-badge ${type}`;
   statusBadge.textContent = type === "loading" ? "Processing" : type.charAt(0).toUpperCase() + type.slice(1);
   statusCopy.textContent = message;
+}
+
+function prettifyStage(stage) {
+  return String(stage || "processing")
+    .replace(/-/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function setProgressStepState(element, state) {
+  element.classList.remove("is-pending", "is-active", "is-complete");
+  element.classList.add(state);
+}
+
+function updateProgressUi({ percent = 0, label = "", stage = "", phase = "processing" } = {}) {
+  progressPanel.classList.remove("hidden");
+  progressPanel.dataset.phase = phase;
+  progressLabel.textContent = label || "Processing your recording";
+  progressStage.textContent = stage || "Working through the pipeline";
+  progressPercent.textContent = `${Math.max(0, Math.min(100, Math.round(percent)))}%`;
+  progressFill.style.width = `${Math.max(0, Math.min(100, percent))}%`;
+
+  const uploadState = percent >= 8 ? "is-complete" : "is-active";
+  const transcriptionState = percent >= 62 ? "is-complete" : percent >= 15 ? "is-active" : "is-pending";
+  const notesState = percent >= 86 ? "is-complete" : percent >= 70 ? "is-active" : "is-pending";
+  const notionState = percent >= 100 ? "is-complete" : percent >= 86 ? "is-active" : "is-pending";
+
+  setProgressStepState(stepUpload, uploadState);
+  setProgressStepState(stepTranscription, transcriptionState);
+  setProgressStepState(stepNotes, notesState);
+  setProgressStepState(stepNotion, notionState);
+}
+
+function resetProgressUi() {
+  progressPanel.classList.add("hidden");
+  progressPanel.dataset.phase = "idle";
+  progressLabel.textContent = "Waiting to start";
+  progressStage.textContent = "Idle";
+  progressPercent.textContent = "0%";
+  progressFill.style.width = "0%";
+  [stepUpload, stepTranscription, stepNotes, stepNotion].forEach((step) => setProgressStepState(step, "is-pending"));
+}
+
+function stopJobPolling() {
+  if (activeJobPoller) {
+    window.clearTimeout(activeJobPoller);
+    activeJobPoller = null;
+  }
 }
 
 function setRecordingUi({ isRecording, stateText }) {
@@ -440,37 +529,102 @@ async function renderGoogleButton(clientId) {
   }
 }
 
+function populateResult(payload) {
+  transcriptLink.href = `/api/notes/${payload.recordingId}/transcript`;
+  notesLink.href = `/api/notes/${payload.recordingId}/notes`;
+  notionLink.href = payload.notion?.url || "#";
+  summaryText.textContent = payload.notes?.summary || "No summary returned.";
+
+  renderList(actionItems, payload.notes?.actionItems, (item) =>
+    `${item.task} • ${item.owner || "Unassigned"} • ${item.deadline || "No deadline"}`
+  );
+  renderList(decisions, payload.notes?.decisions);
+
+  result.classList.remove("hidden");
+}
+
+async function pollUploadJob(jobId) {
+  return new Promise((resolve, reject) => {
+    const poll = async () => {
+      try {
+        const payload = await fetchJson(`/api/uploads/jobs/${jobId}`);
+        const job = payload.job;
+
+        updateProgressUi({
+          percent: job.progress,
+          label: job.message || "Processing your recording",
+          stage: prettifyStage(job.stage),
+          phase: job.status === "failed" ? "error" : job.status === "completed" ? "success" : "processing"
+        });
+
+        if (job.status === "completed") {
+          resolve(job);
+          return;
+        }
+
+        if (job.status === "failed") {
+          reject(new Error(job.error || job.message || "Processing failed."));
+          return;
+        }
+
+        activeJobPoller = window.setTimeout(poll, 1200);
+      } catch (error) {
+        reject(error);
+      }
+    };
+
+    poll();
+  });
+}
+
 async function submitAudio(file) {
   const formData = new FormData(form);
   formData.set("audio", file);
 
+  stopJobPolling();
   submitButton.disabled = true;
   recordButton.disabled = true;
   result.classList.add("hidden");
-  setStatus("loading", "Uploading audio, transcribing, generating notes, and sending the result to Notion.");
+  setStatus("loading", "Uploading audio and preparing the AI pipeline.");
+  updateProgressUi({
+    percent: 0,
+    label: "Uploading audio",
+    stage: "Sending the file to the server",
+    phase: "processing"
+  });
 
   try {
-    const payload = await fetchJson("/api/uploads/audio", {
-      method: "POST",
-      body: formData
+    const kickoff = await uploadAudioWithProgress("/api/uploads/audio/async", formData, (fraction) => {
+      updateProgressUi({
+        percent: Math.max(1, Math.round(fraction * 8)),
+        label: "Uploading audio",
+        stage: "Sending the file to the server",
+        phase: "processing"
+      });
     });
 
-    transcriptLink.href = `/api/notes/${payload.recordingId}/transcript`;
-    notesLink.href = `/api/notes/${payload.recordingId}/notes`;
-    notionLink.href = payload.notion?.url || "#";
-    summaryText.textContent = payload.notes?.summary || "No summary returned.";
+    setStatus("loading", "Upload complete. Transcribing audio, generating notes, and sending everything to Notion.");
 
-    renderList(actionItems, payload.notes?.actionItems, (item) =>
-      `${item.task} • ${item.owner || "Unassigned"} • ${item.deadline || "No deadline"}`
-    );
-    renderList(decisions, payload.notes?.decisions);
-
-    result.classList.remove("hidden");
+    const job = await pollUploadJob(kickoff.jobId);
+    populateResult(job.result);
     setStatus("success", "Finished. Your transcript, notes, and Notion page are ready.");
+    updateProgressUi({
+      percent: 100,
+      label: "All done",
+      stage: "Transcript, notes, and Notion page are ready",
+      phase: "success"
+    });
     await loadNotes();
   } catch (error) {
     setStatus("error", error.message);
+    updateProgressUi({
+      percent: 100,
+      label: "Processing failed",
+      stage: error.message,
+      phase: "error"
+    });
   } finally {
+    stopJobPolling();
     submitButton.disabled = false;
     recordButton.disabled = false;
   }
@@ -615,6 +769,8 @@ logoutButton.addEventListener("click", async () => {
 loadAuthState().catch(() => {
   authStatus.textContent = "The app could not initialize. Please refresh and try again.";
 });
+
+resetProgressUi();
 
 chatLauncher.addEventListener("click", () => {
   chatPopup.classList.remove("hidden");

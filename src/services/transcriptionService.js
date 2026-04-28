@@ -102,10 +102,22 @@ async function transcribeSingleFile(filePath) {
   return transcription.text?.trim() || "";
 }
 
-export async function transcribeAudio(filePath) {
+export async function transcribeAudio(filePath, options = {}) {
+  const { onProgress } = options;
   const durationSeconds = await getAudioDurationSeconds(filePath);
+  onProgress?.({
+    progress: 18,
+    stage: "analyzing-audio",
+    message: "Audio received. Measuring duration and preparing transcription."
+  });
 
   if (durationSeconds <= env.transcriptionChunkSeconds) {
+    onProgress?.({
+      progress: 30,
+      stage: "transcribing",
+      message: "Transcribing audio."
+    });
+
     return {
       model: env.openAiTranscriptionModel,
       text: await transcribeSingleFile(filePath)
@@ -113,11 +125,25 @@ export async function transcribeAudio(filePath) {
   }
 
   const { tempDir, chunkPaths } = await splitAudioIntoChunks(filePath, env.transcriptionChunkSeconds);
+  onProgress?.({
+    progress: 26,
+    stage: "chunking-audio",
+    message: `Long recording detected. Split into ${chunkPaths.length} transcription chunks.`
+  });
 
   try {
     const chunkTexts = [];
 
-    for (const chunkPath of chunkPaths) {
+    for (const [index, chunkPath] of chunkPaths.entries()) {
+      const progressStart = 30;
+      const progressEnd = 58;
+      const chunkProgress = progressStart + Math.round(((index + 1) / chunkPaths.length) * (progressEnd - progressStart));
+      onProgress?.({
+        progress: chunkProgress,
+        stage: "transcribing",
+        message: `Transcribing chunk ${index + 1} of ${chunkPaths.length}.`
+      });
+
       const chunkText = await transcribeSingleFile(chunkPath);
       if (chunkText) {
         chunkTexts.push(chunkText);

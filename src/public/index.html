@@ -129,6 +129,39 @@
               Record or upload a meeting to generate transcript, notes, and a Notion page.
             </div>
 
+            <div id="progress-panel" class="progress-panel hidden">
+              <div class="progress-hero">
+                <div>
+                  <p id="progress-label" class="progress-label">Waiting to start</p>
+                  <p id="progress-stage" class="progress-stage">Idle</p>
+                </div>
+                <p id="progress-percent" class="progress-percent">0%</p>
+              </div>
+
+              <div class="progress-track" aria-hidden="true">
+                <div id="progress-fill" class="progress-fill"></div>
+              </div>
+
+              <div class="progress-step-grid">
+                <div id="step-upload" class="progress-step is-pending">
+                  <span class="step-dot"></span>
+                  <span>Upload</span>
+                </div>
+                <div id="step-transcription" class="progress-step is-pending">
+                  <span class="step-dot"></span>
+                  <span>Transcript</span>
+                </div>
+                <div id="step-notes" class="progress-step is-pending">
+                  <span class="step-dot"></span>
+                  <span>Notes</span>
+                </div>
+                <div id="step-notion" class="progress-step is-pending">
+                  <span class="step-dot"></span>
+                  <span>Notion</span>
+                </div>
+              </div>
+            </div>
+
             <div id="result" class="result hidden">
               <div class="result-block">
                 <h4>Saved outputs</h4>
